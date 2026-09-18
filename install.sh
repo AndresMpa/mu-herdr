@@ -28,14 +28,17 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Herdr's key token is ctrl+b (Ctrl-B). cmd+b does not reach a Mac terminal.
+# Herdr's key token is always alt+space. On Mac that key is Option-Space.
 prefix_label() {
-  echo "Ctrl-B"
+  case "$(uname -s)" in
+    Darwin) echo "Option-Space" ;;
+    *) echo "Alt-Space" ;;
+  esac
 }
 
 set_prefix() {
   local conf="$INSTALL_DIR/config.toml"
-  local key="ctrl+b"
+  local key="alt+space"
   local label
   label=$(prefix_label)
   [ -f "$conf" ] || return 0
@@ -116,6 +119,14 @@ Open a new terminal, then:
 Action key is $LABEL (MμVim leader stays Space).
 $LABEL then ? lists binds.
 EOF
+
+if [ "$(uname -s)" = Darwin ]; then
+  cat <<'EOF'
+
+On a Mac, Option is Alt. In iTerm2: Profiles → Keys → Left Option key = Esc+.
+Ghostty/kitty usually send Option as Alt already.
+EOF
+fi
 
 cat <<EOF
 
