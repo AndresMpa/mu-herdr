@@ -235,6 +235,18 @@ for t in tabs:
 }
 
 chord_t() {
+  HERE=$(cd "$(dirname "$0")" && pwd)
+  printf 't'
+  local k
+  if k=$(read_key 1); then
+    printf '%s\n' "$k"
+    is_esc "$k" && exit 0
+    if [ "$k" = h ]; then
+      exec "$HERE/theme" pick
+    fi
+  else
+    printf '\n'
+  fi
   run_pane split --direction right --focus
 }
 
