@@ -75,6 +75,12 @@ place_config() {
   echo "Copied MμHerdr to $INSTALL_DIR"
 }
 
+chmod_chord() {
+  if [ -f "$INSTALL_DIR/bin/chord" ]; then
+    chmod +x "$INSTALL_DIR/bin/chord"
+  fi
+}
+
 printf "Use a custom config directory? (default %s) [y/N]: " "$INSTALL_DIR"
 read -r custom
 if [ "${custom:-n}" = "y" ] || [ "${custom:-n}" = "Y" ]; then
@@ -90,6 +96,7 @@ fi
 
 install_herdr || echo "Could not install herdr. Install it from https://herdr.dev then re-run."
 place_config
+chmod_chord
 set_prefix
 
 if command_exists herdr; then
