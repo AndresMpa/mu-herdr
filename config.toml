@@ -2,6 +2,8 @@
 # Clone to ~/.config/herdr
 #
 # MμVim leader is Space. Herdr prefix is Alt-Space (Option-Space on Mac).
+# Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
+# so the rest of the sequence is the same letters as MμVim (vv, vj, vk, gst).
 
 onboarding = false
 
@@ -38,48 +40,82 @@ reload_config = "prefix+shift+r"
 # Space q → close pane. Detach is prefix+d so q can match Vim.
 close_pane = "prefix+q"
 detach = "prefix+d"
-close_tab = "prefix+shift+x"
+close_tab = "prefix+h"
 close_workspace = "prefix+shift+d"
 
-# Space j / k → prev / next buffer. Prefix is one key, so tabs are [ ].
-previous_tab = "prefix+["
-next_tab = "prefix+]"
+# Space j / k → previous / next buffer. Tabs are the Herdr analog.
+previous_tab = "prefix+j"
+next_tab = "prefix+k"
 new_tab = "prefix+c"
 rename_tab = "prefix+shift+t"
 switch_tab = "prefix+1..9"
 
-# Space vv / vj / vk → z / minus / v (Herdr allows one key after prefix).
-zoom = "prefix+z"
-split_horizontal = "prefix+minus"
-split_vertical = ["prefix+v", "prefix+t"]
+# vv / vj / vk are finished by bin/chord after prefix+v. Unbind natives.
+zoom = ""
+split_horizontal = ""
+split_vertical = ""
 
 # Space n → file tree
 toggle_sidebar = "prefix+n"
 
-# Ctrl-hjkl in MμVim moves windows. After the prefix, hjkl move Herdr panes.
-focus_pane_left = "prefix+h"
-focus_pane_down = "prefix+j"
-focus_pane_up = "prefix+k"
-focus_pane_right = "prefix+l"
+# Ctrl-hjkl in MμVim moves windows. Same chords move Herdr panes (no prefix).
+focus_pane_left = "ctrl+h"
+focus_pane_down = "ctrl+j"
+focus_pane_up = "ctrl+k"
+focus_pane_right = "ctrl+l"
 cycle_pane_next = "prefix+tab"
 cycle_pane_previous = "prefix+shift+tab"
 
-# Space < / > resize the current window. Shift-hjkl resize the pane.
 resize_mode = "prefix+r"
-resize_pane_left = "prefix+shift+h"
-resize_pane_down = "prefix+shift+j"
-resize_pane_up = "prefix+shift+k"
-resize_pane_right = "prefix+shift+l"
+resize_pane_left = ""
+resize_pane_down = ""
+resize_pane_up = ""
+resize_pane_right = ""
 
 workspace_picker = "prefix+w"
-goto = "prefix+g"
+# prefix+g starts git chords (gst, gpl, …). Unbind workspace goto.
+goto = ""
 new_workspace = "prefix+shift+n"
+new_worktree = ""
 rename_workspace = "prefix+shift+w"
 
+# Space vv / vj / vk
 [[keys.command]]
-key = "prefix+shift+g"
+key = "prefix+v"
 type = "popup"
-command = "lazygit"
-description = "Git status (Space gst)"
+command = "bash ~/.config/herdr/bin/chord v"
+description = "vv zoom · vj split · vk vsplit"
+width = "36%"
+height = "18%"
+
+# Space gst / gpl / gps / …
+[[keys.command]]
+key = "prefix+g"
+type = "popup"
+command = "bash ~/.config/herdr/bin/chord g"
+description = "git (gst lazygit, gpl, gps, …)"
 width = "90%"
 height = "85%"
+
+# Space l → :ls
+[[keys.command]]
+key = "prefix+l"
+type = "popup"
+command = "bash ~/.config/herdr/bin/chord l"
+description = "List tabs"
+width = "50%"
+height = "40%"
+
+# Space H → close other buffers
+[[keys.command]]
+key = "prefix+shift+h"
+type = "shell"
+command = "bash ~/.config/herdr/bin/chord H"
+description = "Close other tabs"
+
+# Ctrl-t analog: new pane to the right
+[[keys.command]]
+key = "prefix+t"
+type = "shell"
+command = "bash ~/.config/herdr/bin/chord t"
+description = "New pane (vsplit)"
