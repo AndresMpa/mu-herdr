@@ -79,6 +79,24 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 UI colors follow Current **deep-ocean** (`#0F111A`, `#82AAFF`, `#C3E88D`, `#C792EA`).
 
+## Debug
+
+If keys do nothing, run this **inside a Herdr pane**:
+
+```
+cd ~/.config/herdr
+./debug.sh
+```
+
+Then, in Herdr: prefix, **release**, then `?`. Help overlay means the prefix reached Herdr. No overlay means the OS or the outer terminal swallowed Command-B (same class of problem as Ctrl-Space). Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
+
+```
+herdr config check
+herdr server reload-config
+```
+
+For more Herdr log detail, restart with `HERDR_LOG=herdr=debug herdr`. Logs live next to `config.toml`.
+
 ## Reload
 
 ```
