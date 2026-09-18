@@ -8,24 +8,32 @@
 
 onboarding = false
 
+# BEGIN MμHerdr theme
 [theme]
 name = "tokyo-night"
+auto_switch = false
 
 [theme.custom]
 panel_bg = "#0F111A"
 sidebar_bg = "#0F111A"
 active_row_bg = "#181A1F"
 selection_bg = "#181A1F"
+surface0 = "#181A1F"
+surface1 = "#181A1F"
+surface_dim = "#8F93A2"
+overlay0 = "#8F93A2"
+overlay1 = "#181A1F"
 text = "#C5C9D6"
 subtext0 = "#8F93A2"
 accent = "#84FFFF"
 blue = "#82AAFF"
 green = "#C3E88D"
-mauve = "#C792EA"
 red = "#F07178"
 yellow = "#FFCB6B"
 teal = "#89DDFF"
+mauve = "#C792EA"
 peach = "#F78C6C"
+# END MμHerdr theme
 
 [terminal]
 default_shell = "zsh"
@@ -114,9 +122,11 @@ type = "shell"
 command = "bash ~/.config/herdr/bin/chord H"
 description = "Close other tabs"
 
-# Ctrl-t analog: new pane to the right
+# Space th → theme picker. prefix+t then t (or wait) splits like Ctrl-t.
 [[keys.command]]
 key = "prefix+t"
-type = "shell"
+type = "popup"
 command = "bash ~/.config/herdr/bin/chord t"
-description = "New pane (vsplit)"
+description = "tt new pane · th theme"
+width = "50%"
+height = "55%"
