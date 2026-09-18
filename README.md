@@ -2,7 +2,7 @@
 
 A [Herdr](https://herdr.dev) config that follows [MμVim](https://github.com/AndresMpa/mu-vim) maps, with a **different action key**.
 
-MμVim leader is `Space`. Herdr prefix is **Command-B**. The token in `config.toml` is `cmd+b`.
+MμVim leader is `Space`. Herdr prefix is **Ctrl-B**. The token in `config.toml` is `ctrl+b`. `cmd+b` (Command-B) does not reach Herdr on a Mac terminal.
 
 ## Install
 
@@ -13,7 +13,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Command-B` then `?` lists every binding.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Ctrl-B` then `?` lists every binding.
 
 ## Uninstall
 
@@ -28,9 +28,9 @@ Removes the config, state, and `old-herdr`. Leaves the herdr binary and package 
 
 | | MμVim | MμHerdr |
 | --- | --- | --- |
-| Action key | `Space` | `Command-B` then the same letters |
+| Action key | `Space` | `Ctrl-B` then the same letters |
 
-Press Command-B, release, then the same letters you would type after Space in MμVim.
+Press Ctrl-B, **release**, then immediately the same letters you would type after Space in MμVim. Do not wait.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
@@ -88,7 +88,7 @@ cd ~/.config/herdr
 ./debug.sh
 ```
 
-Then, in Herdr: prefix, **release**, then `?`. Help overlay means the prefix reached Herdr. No overlay means the OS or the outer terminal swallowed Command-B (same class of problem as Ctrl-Space). Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
+Then, in Herdr: Ctrl-B, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
 
 ```
 herdr config check
