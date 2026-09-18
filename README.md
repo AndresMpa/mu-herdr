@@ -2,7 +2,7 @@
 
 A [Herdr](https://herdr.dev) config that follows [MμVim](https://github.com/AndresMpa/mu-vim) maps, with a **different action key**.
 
-MμVim leader is `Space`. Herdr prefix is **Alt-Space** (Linux) or **Option-Space** (Mac). `./install.sh` picks the label from `uname`; the token in `config.toml` is always `alt+space` (Herdr's name for Option/Alt).
+MμVim leader is `Space`. Herdr prefix is **Command-B**. The token in `config.toml` is `cmd+b`.
 
 ## Install
 
@@ -13,7 +13,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix for this OS. `Alt-Space`/`Option-Space` then `?` lists every binding.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Command-B` then `?` lists every binding.
 
 ## Uninstall
 
@@ -28,9 +28,9 @@ Removes the config, state, and `old-herdr`. Leaves the herdr binary and package 
 
 | | MμVim | MμHerdr |
 | --- | --- | --- |
-| Action key | `Space` | `Alt-Space` / `Option-Space` (Mac) then the same letters |
+| Action key | `Space` | `Command-B` then the same letters |
 
-Press Alt-Space (Option-Space on a Mac), release, then the same letters you would type after Space in MμVim.
+Press Command-B, release, then the same letters you would type after Space in MμVim.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
@@ -74,8 +74,6 @@ Herdr prefix mode only takes **one** key (like tmux). For sequences of two or th
 | `Space ggg` | `gg` | `git …` |
 
 Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. Resize mode is prefix `r`. Esc cancels a chord.
-
-On a Mac, set the terminal so Option is Alt (iTerm2: Profiles → Keys → Left Option key = Esc+).
 
 ## Theme
 
