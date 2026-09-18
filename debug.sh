@@ -61,8 +61,9 @@ cat <<'EOF'
 == what to try in Herdr ==
 
 1. Prefix, release, then ? right away — help overlay.
-   Prefix is Ctrl-B (ctrl+b). Press it, let go, then ? with no pause.
-   Waiting does nothing. cmd+b never reaches a Mac terminal.
+   Prefix is Alt-Space (alt+space), Option-Space on a Mac.
+   Press it, let go, then ? with no pause. Waiting does nothing.
+   No overlay on a Mac → Left Option is not Alt (iTerm: Esc+).
 
 2. Prefix, release, then n  — sidebar. No chord helper needed.
 
