@@ -8,12 +8,21 @@ MμVim leader is `Space`. Herdr prefix is `Ctrl-Space`, so Neovim still owns `Sp
 
 ```
 git clone https://github.com/AndresMpa/mu-herdr.git ~/.config/herdr
-herdr server reload-config
+cd ~/.config/herdr
+./install.sh
+herdr
 ```
 
-Or copy `config.toml` into `~/.config/herdr/config.toml`.
+The installer puts Herdr on PATH (Homebrew or herdr.dev) and copies this config to `~/.config/herdr`. `Ctrl-Space ?` lists every binding.
 
-`prefix+?` lists every binding.
+## Uninstall
+
+```
+cd ~/.config/herdr
+./delete.sh
+```
+
+Removes the config, state, and `old-herdr`. Leaves the herdr binary and package manager packages.
 
 ## Action key
 
