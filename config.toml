@@ -1,0 +1,93 @@
+# MμHerdr — Herdr keys that follow MμVim, with a different action key.
+# Clone to ~/.config/herdr
+#
+# MμVim leader is Space. Herdr prefix is Ctrl-Space so nvim still owns Space.
+
+onboarding = false
+
+[theme]
+name = "tokyo-night"
+
+[theme.custom]
+panel_bg = "#0F111A"
+sidebar_bg = "#0F111A"
+active_row_bg = "#181A1F"
+selection_bg = "#181A1F"
+text = "#C5C9D6"
+subtext0 = "#8F93A2"
+accent = "#84FFFF"
+blue = "#82AAFF"
+green = "#C3E88D"
+mauve = "#C792EA"
+red = "#F07178"
+yellow = "#FFCB6B"
+teal = "#89DDFF"
+peach = "#F78C6C"
+
+[terminal]
+default_shell = "zsh"
+new_cwd = "follow"
+
+[keys]
+prefix = "ctrl+space"
+
+help = "prefix+?"
+settings = "prefix+s"
+reload_config = "prefix+shift+r"
+
+# Space q → close pane. Detach is prefix+d so q can match Vim.
+close_pane = "prefix+q"
+detach = "prefix+d"
+close_tab = "prefix+shift+h"
+close_workspace = "prefix+shift+d"
+
+# Space j / k → prev / next buffer. Shift-j/k move tabs so hjkl can move panes.
+previous_tab = "prefix+shift+j"
+next_tab = "prefix+shift+k"
+new_tab = "prefix+c"
+rename_tab = "prefix+shift+t"
+switch_tab = "prefix+1..9"
+
+# Space vv / vj / vk → only-window / split / vsplit
+zoom = "prefix+vv"
+split_horizontal = "prefix+vj"
+split_vertical = ["prefix+vk", "prefix+t"]
+
+# Space n → file tree
+toggle_sidebar = "prefix+n"
+
+# Ctrl-hjkl in MμVim moves windows. After the prefix, hjkl move Herdr panes.
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+cycle_pane_next = "prefix+tab"
+cycle_pane_previous = "prefix+shift+tab"
+
+# Space < / > resize the current window. Shift-hjkl resize the pane.
+resize_mode = "prefix+r"
+resize_pane_left = "prefix+shift+h"
+resize_pane_down = "prefix+shift+j"
+resize_pane_up = "prefix+shift+k"
+resize_pane_right = "prefix+shift+l"
+
+workspace_picker = "prefix+w"
+goto = "prefix+g"
+new_workspace = "prefix+shift+n"
+rename_workspace = "prefix+shift+w"
+
+[[keys.command]]
+key = "prefix+gst"
+type = "popup"
+command = "lazygit"
+description = "Git status (Space gst)"
+width = "90%"
+height = "85%"
+
+[[keys.command]]
+key = "prefix+ggg"
+type = "popup"
+command = "lazygit"
+description = "Git"
+width = "90%"
+height = "85%"
