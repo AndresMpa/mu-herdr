@@ -28,28 +28,52 @@ Removes the config, state, and `old-herdr`. Leaves the herdr binary and package 
 
 | | MμVim | MμHerdr |
 | --- | --- | --- |
-| Action key | `Space` | `Alt-Space` / `Option-Space` (Mac) then the letter |
+| Action key | `Space` | `Alt-Space` / `Option-Space` (Mac) then the same letters |
 
-Press Alt-Space (Option-Space on a Mac), release, then the same letter you would use after Space in MμVim.
+Press Alt-Space (Option-Space on a Mac), release, then the same letters you would type after Space in MμVim.
+
+Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
 ## Maps
 
 | MμVim | MμHerdr | Herdr action |
 | --- | --- | --- |
 | `Space q` | prefix `q` | Close pane |
-| `Space h` | prefix `Shift-x` | Close tab |
-| `Space j` / `k` | prefix `[` / `]` | Previous / next tab |
-| `Space vv` | prefix `z` | Zoom (only this pane) |
-| `Space vj` | prefix `-` | Split down |
-| `Space vk` | prefix `v` | Split right |
+| `Space h` | prefix `h` | Close tab |
+| `Space j` / `k` | prefix `j` / `k` | Previous / next tab |
+| `Space H` | prefix `H` | Close other tabs |
+| `Space l` | prefix `l` | List tabs |
+| `Space vv` | prefix `v` then `v` | Zoom (only this pane) |
+| `Space vj` | prefix `v` then `j` | Split down |
+| `Space vk` | prefix `v` then `k` | Split right |
 | `Space n` | prefix `n` | Sidebar (tree) |
-| `Space gst` | prefix `Shift-g` | Lazygit |
+| `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
 | `Ctrl-t` (new terminal) | prefix `t` | Split right (new pane) |
-| `Ctrl-h/j/k/l` (windows) | prefix `h/j/k/l` | Focus pane |
+| `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
-Herdr only accepts **one key** after the prefix (like tmux), so `vv` / `vj` / `vk` / `gst` become `z` / `-` / `v` / `Shift-g`. Resize is prefix `Shift-h/j/k/l`. Prefix is Alt-Space, or Option-Space on a Mac.
+### Git (prefix `g`, then the same letters as MμVim)
 
-Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit.
+| MμVim | After prefix `g` | Action |
+| --- | --- | --- |
+| `Space gst` | `st` | Lazygit / `git status` |
+| `Space gpl` | `pl` | `git pull` |
+| `Space gps` | `ps` | `git push` |
+| `Space gll` | `ll` | `git pull` current branch |
+| `Space gpp` | `pp` | `git push` current branch |
+| `Space gpx` | `px` | `git push -u` current branch |
+| `Space gaa` | `aa` | `git add --all` |
+| `Space gap` | `ap` | `git add -p` |
+| `Space gbl` | `bl` | `git blame` |
+| `Space gsh` | `sh` | `git show` |
+| `Space gii` | `ii` | `git init` |
+| `Space grv` | `rv` | `git remote -v` |
+| `Space gc` | `c` | `git commit` (wait 1s; `co` / `cb` continue) |
+| `Space gco` | `co` | `git checkout …` |
+| `Space gcb` | `cb` | `git checkout -b …` |
+| `Space gsw` | `sw` | `git switch …` |
+| `Space ggg` | `gg` | `git …` |
+
+Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. Resize mode is prefix `r`. Esc cancels a chord.
 
 On a Mac, set the terminal so Option is Alt (iTerm2: Profiles → Keys → Left Option key = Esc+).
 

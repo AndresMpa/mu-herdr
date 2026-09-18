@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# Finish MμVim letter sequences after the Herdr prefix.
+# Prefix mode only takes one key, so prefix+v / prefix+g open this
+# popup (or a detached shell) to read the rest: vv, vj, vk, gst, …
+set -u
+
+FAMILY=${1:-}
+HERDR_BIN=${HERDR_BIN_PATH:-herdr}
+PANE=${HERDR_ACTIVE_PANE_ID:-}
+
+herdr_cmd() {
+  "$HERDR_BIN" "$@"
+}
+
+read_key() {
+  # $1 optional timeout in seconds (integer — bash 3.2 on Mac).
+  local key
+  if [ -n "${1:-}" ]; then
+    IFS= read -r -n 1 -t "$1" key || return 1
+  else
+    IFS= read -r -n 1 key || return 1
+  fi
+  printf '%s' "$key"
+}
+
+is_esc() {
+  [ "$1" = "$(printf '\033')" ]
+}
+
+pause() {
+  printf 'Press any key.'
+  IFS= read -r -n 1 _ || true
+  printf '\n'
+}
+
+current_branch() {
+  git branch --show-current | tr -d '\n'
+}
+
+run_git() {
+  git "$@"
+  pause
+}
+
+prompt_git() {
+  local prefix=$1
+  printf '%s' "$prefix"
+  local rest
+  IFS= read -r rest || return 0
+  # Intentional split: the rest is git argv typed by the user.
+  # shellcheck disable=SC2086
+  git $rest
+  pause
+}
+
+run_pane() {
+  # Usage: run_pane zoom --on   /  run_pane split --direction down --focus
+  local sub=$1
+  shift
+  if [ -n "$PANE" ]; then
+    herdr_cmd pane "$sub" --pane "$PANE" "$@"
+  else
+    herdr_cmd pane "$sub" --current "$@"
+  fi
+}
+
+py() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "$1"
+  elif command -v python >/dev/null 2>&1; then
+    python -c "$1"
+  else
+    return 1
+  fi
+}
+
+chord_v() {
+  printf 'v'
+  local k
+  k=$(read_key) || exit 0
+  printf '%s\n' "$k"
+  is_esc "$k" && exit 0
+  case $k in
+    v) run_pane zoom --on ;;
+    j) run_pane split --direction down --focus ;;
+    k) run_pane split --direction right --focus ;;
+  esac
+}
+
+chord_g() {
+  printf 'g'
+  local a b
+  a=$(read_key) || exit 0
+  printf '%s' "$a"
+  is_esc "$a" && printf '\n' && exit 0
+
+  case $a in
+    c)
+      # gc = commit. gco / gcb wait for a second letter (timeout 1s).
+      if b=$(read_key 1); then
+        printf '%s\n' "$b"
+        is_esc "$b" && exit 0
+        case $b in
+          o) prompt_git 'git checkout ' ;;
+          b) prompt_git 'git checkout -b ' ;;
+        esac
+      else
+        printf '\n'
+        git commit
+        pause
+      fi
+      ;;
+    s)
+      b=$(read_key) || exit 0
+      printf '%s\n' "$b"
+      is_esc "$b" && exit 0
+      case $b in
+        t)
+          if command -v lazygit >/dev/null 2>&1; then
+            exec lazygit
+          fi
+          run_git status
+          ;;
+        h) run_git show ;;
+        w) prompt_git 'git switch ' ;;
+      esac
+      ;;
+    p)
+      b=$(read_key) || exit 0
+      printf '%s\n' "$b"
+      is_esc "$b" && exit 0
+      case $b in
+        l) run_git pull ;;
+        s) run_git push ;;
+        p) run_git push origin "$(current_branch)" ;;
+        x) run_git push --set-upstream origin "$(current_branch)" ;;
+      esac
+      ;;
+    i)
+      b=$(read_key) || exit 0
+      printf '%s\n' "$b"
+      is_esc "$b" && exit 0
+      case $b in
+        i) run_git init ;;
+      esac
+      ;;
+    b)
+      b=$(read_key) || exit 0
+      printf '%s\n' "$b"
+      is_esc "$b" && exit 0
+      case $b in
+        l) run_git blame ;;
+      esac
+      ;;
+    a)
+      b=$(read_key) || exit 0
+      printf '%s\n' "$b"
+      is_esc "$b" && exit 0
+      case $b in
+        a) run_git add --all ;;
+        p) run_git add -p ;;
+      esac
+      ;;
+    r)
+      b=$(read_key) || exit 0
+      printf '%s\n' "$b"
+      is_esc "$b" && exit 0
+      case $b in
+        v) run_git remote -v ;;
+      esac
+      ;;
+    l)
+      b=$(read_key) || exit 0
+      printf '%s\n' "$b"
+      is_esc "$b" && exit 0
+      case $b in
+        l) run_git pull origin "$(current_branch)" ;;
+      esac
+      ;;
+    g)
+      b=$(read_key) || exit 0
+      printf '%s\n' "$b"
+      is_esc "$b" && exit 0
+      case $b in
+        g) prompt_git 'git ' ;;
+      esac
+      ;;
+  esac
+}
+
+chord_l() {
+  if ! py '
+import json, subprocess, os, sys
+bin = os.environ.get("HERDR_BIN_PATH", "herdr")
+raw = subprocess.check_output([bin, "tab", "list"])
+tabs = json.loads(raw)["result"]["tabs"]
+if not tabs:
+    print("No tabs.")
+    sys.exit(0)
+for t in tabs:
+    mark = "*" if t.get("focused") else " "
+    label = t.get("label") or ""
+    print("%s %s  %s  %s" % (mark, t.get("number"), label, t.get("tab_id", "")))
+'; then
+    herdr_cmd tab list
+  fi
+  printf '\n'
+  pause
+}
+
+chord_H() {
+  py '
+import json, subprocess, os, sys
+bin = os.environ.get("HERDR_BIN_PATH", "herdr")
+keep = os.environ.get("HERDR_ACTIVE_TAB_ID", "")
+raw = subprocess.check_output([bin, "tab", "list"])
+tabs = json.loads(raw)["result"]["tabs"]
+for t in tabs:
+    tid = t.get("tab_id") or ""
+    if not tid:
+        continue
+    if keep and tid == keep:
+        continue
+    if not keep and t.get("focused"):
+        continue
+    subprocess.call([bin, "tab", "close", tid])
+'
+}
+
+chord_t() {
+  run_pane split --direction right --focus
+}
+
+case $FAMILY in
+  v) chord_v ;;
+  g) chord_g ;;
+  l) chord_l ;;
+  H) chord_H ;;
+  t) chord_t ;;
+  *)
+    printf 'usage: chord v|g|l|H|t\n' >&2
+    exit 2
+    ;;
+esac
