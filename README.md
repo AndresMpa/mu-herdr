@@ -50,7 +50,8 @@ Herdr prefix mode only takes **one** key (like tmux). For sequences of two or th
 | `Space vk` | prefix `v` then `k` | Split right |
 | `Space n` | prefix `n` | Sidebar (tree) |
 | `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
-| `Ctrl-t` (new terminal) | prefix `t` | Split right (new pane) |
+| `Space th` | prefix `t` then `h` | Theme picker (same names as MμVim) |
+| `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
 ### Git (prefix `g`, then the same letters as MμVim)
@@ -79,7 +80,29 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 ## Theme
 
-UI colors follow Current **deep-ocean** (`#0F111A`, `#82AAFF`, `#C3E88D`, `#C792EA`).
+The same palettes as MμVim Current, applied to **all** Herdr UI tokens (sidebar, panels, keybind help, accents) plus OSC so the terminal cells follow.
+
+Default is **deep-ocean**. Prefix `t` then `h` opens the picker (j/k preview, Enter save, Esc restore). Or:
+
+```
+~/.config/herdr/bin/theme list
+~/.config/herdr/bin/theme apply gruvbox
+herdr server reload-config
+```
+
+| Name | Same as MμVim |
+| --- | --- |
+| `deep-ocean` | default |
+| `gruvbox` | |
+| `mini` | |
+| `oceanic` | |
+| `palenight` | |
+| `darker` | |
+| `nord` | |
+| `dracula` | |
+| `tokyonight` | |
+| `catppuccin` | |
+| `onedark` | |
 
 ## Debug
 
