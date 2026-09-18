@@ -28,14 +28,14 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Herdr's key token is cmd+b (Command-B).
+# Herdr's key token is ctrl+b (Ctrl-B). cmd+b does not reach a Mac terminal.
 prefix_label() {
-  echo "Command-B"
+  echo "Ctrl-B"
 }
 
 set_prefix() {
   local conf="$INSTALL_DIR/config.toml"
-  local key="cmd+b"
+  local key="ctrl+b"
   local label
   label=$(prefix_label)
   [ -f "$conf" ] || return 0

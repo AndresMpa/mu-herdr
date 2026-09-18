@@ -60,10 +60,9 @@ cat <<'EOF'
 
 == what to try in Herdr ==
 
-1. Prefix, release, then ?  — help overlay.
-   Prefix is Command-B (cmd+b). Press it, let go, then ?.
-   Nothing happens → the OS or the outer terminal ate Command-B
-   before Herdr saw it. Same class of problem as Ctrl-Space.
+1. Prefix, release, then ? right away — help overlay.
+   Prefix is Ctrl-B (ctrl+b). Press it, let go, then ? with no pause.
+   Waiting does nothing. cmd+b never reaches a Mac terminal.
 
 2. Prefix, release, then n  — sidebar. No chord helper needed.
 
