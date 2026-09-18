@@ -37,17 +37,17 @@ Press Alt-Space (Option-Space on a Mac), release, then the same letter you would
 | MμVim | MμHerdr | Herdr action |
 | --- | --- | --- |
 | `Space q` | prefix `q` | Close pane |
-| `Space h` | prefix `Shift-h` | Close tab |
-| `Space j` / `k` | prefix `Shift-j` / `Shift-k` | Previous / next tab |
-| `Space vv` | prefix `vv` | Zoom (only this pane) |
-| `Space vj` | prefix `vj` | Split down |
-| `Space vk` | prefix `vk` | Split right |
+| `Space h` | prefix `Shift-x` | Close tab |
+| `Space j` / `k` | prefix `[` / `]` | Previous / next tab |
+| `Space vv` | prefix `z` | Zoom (only this pane) |
+| `Space vj` | prefix `-` | Split down |
+| `Space vk` | prefix `v` | Split right |
 | `Space n` | prefix `n` | Sidebar (tree) |
-| `Space gst` | prefix `gst` | Lazygit |
+| `Space gst` | prefix `Shift-g` | Lazygit |
 | `Ctrl-t` (new terminal) | prefix `t` | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | prefix `h/j/k/l` | Focus pane |
 
-Resize is prefix `Shift-h/j/k/l`. Prefix is Alt-Space, or Option-Space on a Mac.
+Herdr only accepts **one key** after the prefix (like tmux), so `vv` / `vj` / `vk` / `gst` become `z` / `-` / `v` / `Shift-g`. Resize is prefix `Shift-h/j/k/l`. Prefix is Alt-Space, or Option-Space on a Mac.
 
 Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit.
 
