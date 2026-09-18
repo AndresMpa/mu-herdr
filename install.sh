@@ -28,6 +28,28 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
+# Herdr's key token is always alt+space. On Mac that key is Option.
+prefix_label() {
+  case "$(uname -s)" in
+    Darwin) echo "Option-Space" ;;
+    *) echo "Alt-Space" ;;
+  esac
+}
+
+set_prefix() {
+  local conf="$INSTALL_DIR/config.toml"
+  local key="alt+space"
+  local label
+  label=$(prefix_label)
+  [ -f "$conf" ] || return 0
+  tmp=$(mktemp)
+  awk -v key="$key" '
+    /^prefix = / { print "prefix = \"" key "\""; next }
+    { print }
+  ' "$conf" > "$tmp" && mv "$tmp" "$conf"
+  echo "Prefix set to $label ($key) on $(uname -s)."
+}
+
 place_config() {
   if [ "$SCRIPT_DIR" = "$INSTALL_DIR" ]; then
     echo "Already running from $INSTALL_DIR — nothing to copy."
@@ -68,10 +90,13 @@ fi
 
 install_herdr || echo "Could not install herdr. Install it from https://herdr.dev then re-run."
 place_config
+set_prefix
 
 if command_exists herdr; then
   herdr server reload-config >/dev/null 2>&1 || true
 fi
+
+LABEL=$(prefix_label)
 
 cat <<EOF
 
@@ -82,8 +107,19 @@ Open a new terminal, then:
 
   herdr
 
-Action key is Ctrl-Space (MμVim leader stays Space).
-Ctrl-Space ? lists binds.
+Action key is $LABEL (MμVim leader stays Space).
+$LABEL then ? lists binds.
+EOF
+
+if [ "$(uname -s)" = Darwin ]; then
+  cat <<'EOF'
+
+On a Mac, Option is Alt. In iTerm2: Profiles → Keys → Left Option key = Esc+.
+Ghostty/kitty usually send Option as Alt already.
+EOF
+fi
+
+cat <<EOF
 
 Edit the config with:
 

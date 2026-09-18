@@ -1,7 +1,7 @@
 # MμHerdr — Herdr keys that follow MμVim, with a different action key.
 # Clone to ~/.config/herdr
 #
-# MμVim leader is Space. Herdr prefix is Ctrl-Space so nvim still owns Space.
+# MμVim leader is Space. Herdr prefix is Alt-Space (Option-Space on Mac).
 
 onboarding = false
 
@@ -29,7 +29,7 @@ default_shell = "zsh"
 new_cwd = "follow"
 
 [keys]
-prefix = "ctrl+space"
+prefix = "alt+space"
 
 help = "prefix+?"
 settings = "prefix+s"
