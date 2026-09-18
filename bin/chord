@@ -7,6 +7,13 @@ set -u
 FAMILY=${1:-}
 HERDR_BIN=${HERDR_BIN_PATH:-herdr}
 PANE=${HERDR_ACTIVE_PANE_ID:-}
+LOG=${HERDR_CONFIG_PATH:-${HOME:-}/.config/herdr/config.toml}
+LOG=$(dirname "$LOG")/chord.log
+
+chord_log() {
+  printf '%s family=%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$FAMILY" "$*" >>"$LOG" 2>/dev/null || true
+}
+chord_log "start pane=${PANE:-} bin=$HERDR_BIN"
 
 herdr_cmd() {
   "$HERDR_BIN" "$@"
