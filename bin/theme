@@ -88,9 +88,9 @@ active_row_bg = "$bg_alt"
 selection_bg = "$bg_alt"
 surface0 = "$bg_alt"
 surface1 = "$bg_alt"
-surface_dim = "$fg"
-overlay0 = "$fg"
-overlay1 = "$fg"
+surface_dim = "$dim"
+overlay0 = "$accent"
+overlay1 = "$accent"
 text = "$fg"
 subtext0 = "$fg"
 accent = "$accent"
@@ -101,6 +101,9 @@ yellow = "$yellow"
 teal = "$cyan"
 mauve = "$purple"
 peach = "$orange"
+
+[ui]
+accent = "$accent"
 $END
 EOF
 }

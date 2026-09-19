@@ -21,9 +21,9 @@ active_row_bg = "#181A1F"
 selection_bg = "#181A1F"
 surface0 = "#181A1F"
 surface1 = "#181A1F"
-surface_dim = "#C5C9D6"
-overlay0 = "#C5C9D6"
-overlay1 = "#C5C9D6"
+surface_dim = "#8F93A2"
+overlay0 = "#84FFFF"
+overlay1 = "#84FFFF"
 text = "#C5C9D6"
 subtext0 = "#C5C9D6"
 accent = "#84FFFF"
@@ -34,6 +34,9 @@ yellow = "#FFCB6B"
 teal = "#89DDFF"
 mauve = "#C792EA"
 peach = "#F78C6C"
+
+[ui]
+accent = "#84FFFF"
 # END MμHerdr theme
 
 [terminal]
