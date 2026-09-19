@@ -1,8 +1,9 @@
 # MμHerdr — Herdr keys that follow MμVim, with a different action key.
 # Clone to ~/.config/herdr
 #
-# MμVim leader is Space. Herdr prefix is Alt-Space (Option-Space on Mac).
-# Token is always alt+space. cmd+b never reaches a Mac terminal.
+# MμVim leader is Space. Herdr prefix is Ctrl-B (ctrl+b).
+# Option-Space cannot enter prefix mode on a Mac: it inserts a
+# non-breaking space. cmd+b never reaches a Mac terminal.
 # Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
 # so the rest of the sequence is the same letters as MμVim (vv, vj, vk, gst).
 
@@ -40,7 +41,7 @@ default_shell = "zsh"
 new_cwd = "follow"
 
 [keys]
-prefix = "alt+space"
+prefix = "ctrl+b"
 
 help = "prefix+?"
 settings = "prefix+s"
