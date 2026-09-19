@@ -1,6 +1,6 @@
 # MμHerdr
 
-A [Herdr](https://herdr.dev) config. Prefix (command mode) is **Shift-Space** (`shift+space` in `config.toml`). `./install.sh` writes that prefix (you can type another token). If Shift-Space does nothing, the terminal is sending Space; try another prefix.
+A [Herdr](https://herdr.dev) config. You press **Shift-Space** in Ghostty (or Kitty). Herdr’s prefix token is `ctrl+b`; the terminal maps Shift-Space to that. iTerm2 cannot distinguish Shift-Space from Space.
 
 ## Install
 
@@ -11,7 +11,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (**Shift-Space** unless you type another). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. Shift-Space then `?` lists every binding. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (`ctrl+b`). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
 
 ## Uninstall
 
@@ -28,29 +28,21 @@ Removes MμHerdr config, state, cache, `old-herdr`, the notify plugin link, and 
 | --- | --- |
 | Action key | Shift-Space then the map letters |
 
-Press Shift-Space, **release**, then immediately the map letters (same as after Space in MμVim). Do not wait. Prefix then `?` lists every binding. `./install.sh` sets this; default token is `shift+space`.
+Press Shift-Space in **Ghostty**, **release**, then the same letters as Space in MμVim. Do not wait. Prefix then `?` lists every binding.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
-Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking space and cannot enter prefix mode.
+**iTerm2 cannot tell Shift-Space from Space.** Ghostty maps Shift-Space to Ctrl-B, which Herdr reads as prefix (`ctrl+b` in `config.toml`).
 
-**iTerm2 cannot tell Shift-Space from Space.** Herdr needs a terminal that speaks the Kitty keyboard protocol (Ghostty or Kitty).
-
-Ghostty (`brew install --cask ghostty`), then `~/.config/ghostty/config`:
+`brew install --cask ghostty`, then in `~/.config/ghostty/config`:
 
 ```
-keybind = shift+space=text:\x1b[32;2u
+keybind = shift+space=text:\x02
 ```
 
-Reload Ghostty (Cmd-Shift-,). Run `herdr` **inside Ghostty**, not iTerm. Shift-Space, release, `?`.
+Reload Ghostty (Cmd-Shift-,). Run `herdr` **inside Ghostty**. Shift-Space, release, `?`. Ctrl-B still works if the map is missing.
 
-Kitty (`~/.config/kitty/kitty.conf`):
-
-```
-map shift+space send_text all \x1b[32;2u
-```
-
-Snippets also live in `terminals/`.
+Kitty: `terminals/kitty.conf`. Snippets live in `terminals/`.
 
 ## Maps
 
@@ -223,7 +215,7 @@ cd ~/.config/herdr
 ./debug.sh
 ```
 
-Then, in Herdr: Shift-Space, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
+Then, in Ghostty + Herdr: Shift-Space, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
 
 ```
 herdr config check
