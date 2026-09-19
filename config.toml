@@ -1,37 +1,49 @@
-# MμHerdr — Herdr keys that follow MμVim, with a different action key.
-# Clone to ~/.config/herdr
+# MμHerdr — Herdr keys. Clone to ~/.config/herdr
 #
-# MμVim leader is Space. Herdr prefix is Command-B (cmd+b).
+# Prefix is Ctrl-B (ctrl+b).
+# Option-Space cannot enter prefix mode on a Mac: it inserts a
+# non-breaking space. cmd+b never reaches a Mac terminal.
 # Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
-# so the rest of the sequence is the same letters as MμVim (vv, vj, vk, gst).
+# so the rest of the sequence is the same letters (vv, vj, vk, gst).
 
 onboarding = false
 
+# BEGIN MμHerdr theme
 [theme]
 name = "tokyo-night"
+auto_switch = false
 
 [theme.custom]
 panel_bg = "#0F111A"
 sidebar_bg = "#0F111A"
 active_row_bg = "#181A1F"
 selection_bg = "#181A1F"
+surface0 = "#181A1F"
+surface1 = "#181A1F"
+surface_dim = "#8F93A2"
+overlay0 = "#84FFFF"
+overlay1 = "#84FFFF"
 text = "#C5C9D6"
-subtext0 = "#8F93A2"
+subtext0 = "#C5C9D6"
 accent = "#84FFFF"
 blue = "#82AAFF"
 green = "#C3E88D"
-mauve = "#C792EA"
 red = "#F07178"
 yellow = "#FFCB6B"
 teal = "#89DDFF"
+mauve = "#C792EA"
 peach = "#F78C6C"
+
+[ui]
+accent = "#84FFFF"
+# END MμHerdr theme
 
 [terminal]
 default_shell = "zsh"
 new_cwd = "follow"
 
 [keys]
-prefix = "cmd+b"
+prefix = "ctrl+b"
 
 help = "prefix+?"
 settings = "prefix+s"
@@ -58,7 +70,7 @@ split_vertical = ""
 # Space n → file tree
 toggle_sidebar = "prefix+n"
 
-# Ctrl-hjkl in MμVim moves windows. Same chords move Herdr panes (no prefix).
+# Ctrl-hjkl moves Herdr panes (no prefix).
 focus_pane_left = "ctrl+h"
 focus_pane_down = "ctrl+j"
 focus_pane_up = "ctrl+k"
@@ -113,9 +125,11 @@ type = "shell"
 command = "bash ~/.config/herdr/bin/chord H"
 description = "Close other tabs"
 
-# Ctrl-t analog: new pane to the right
+# Space th → theme picker. prefix+t then t (or wait) splits like Ctrl-t.
 [[keys.command]]
 key = "prefix+t"
-type = "shell"
+type = "popup"
 command = "bash ~/.config/herdr/bin/chord t"
-description = "New pane (vsplit)"
+description = "tt new pane · th theme"
+width = "50%"
+height = "55%"

@@ -28,14 +28,14 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Herdr's key token is cmd+b (Command-B).
+# Herdr's key token is ctrl+b. Option-Space inserts a NBSP on Mac.
 prefix_label() {
-  echo "Command-B"
+  echo "Ctrl-B"
 }
 
 set_prefix() {
   local conf="$INSTALL_DIR/config.toml"
-  local key="cmd+b"
+  local key="ctrl+b"
   local label
   label=$(prefix_label)
   [ -f "$conf" ] || return 0
@@ -72,10 +72,12 @@ place_config() {
   echo "Copied MμHerdr to $INSTALL_DIR"
 }
 
-chmod_chord() {
-  if [ -f "$INSTALL_DIR/bin/chord" ]; then
-    chmod +x "$INSTALL_DIR/bin/chord"
-  fi
+chmod_scripts() {
+  for f in "$INSTALL_DIR/bin/chord" "$INSTALL_DIR/bin/theme" "$INSTALL_DIR/debug.sh"; do
+    if [ -f "$f" ]; then
+      chmod +x "$f"
+    fi
+  done
 }
 
 printf "Use a custom config directory? (default %s) [y/N]: " "$INSTALL_DIR"
@@ -93,7 +95,7 @@ fi
 
 install_herdr || echo "Could not install herdr. Install it from https://herdr.dev then re-run."
 place_config
-chmod_chord
+chmod_scripts
 set_prefix
 
 if command_exists herdr; then
@@ -111,7 +113,7 @@ Open a new terminal, then:
 
   herdr
 
-Action key is $LABEL (MμVim leader stays Space).
+Action key is $LABEL.
 $LABEL then ? lists binds.
 EOF
 
