@@ -67,6 +67,7 @@ chmod_scripts() {
     "$INSTALL_DIR/bin/theme" \
     "$INSTALL_DIR/bin/ssh" \
     "$INSTALL_DIR/bin/container" \
+    "$INSTALL_DIR/bin/navigate" \
     "$INSTALL_DIR/debug.sh" \
     "$INSTALL_DIR/install.sh" \
     "$INSTALL_DIR/delete.sh" \
@@ -112,6 +113,7 @@ place_config() {
   copy_file "$SCRIPT_DIR/bin/theme" "$INSTALL_DIR/bin/theme"
   copy_file "$SCRIPT_DIR/bin/ssh" "$INSTALL_DIR/bin/ssh"
   copy_file "$SCRIPT_DIR/bin/container" "$INSTALL_DIR/bin/container"
+  copy_file "$SCRIPT_DIR/bin/navigate" "$INSTALL_DIR/bin/navigate"
   if [ -d "$SCRIPT_DIR/themes" ]; then
     for pal in "$SCRIPT_DIR"/themes/*.toml; do
       [ -f "$pal" ] || continue
@@ -142,6 +144,7 @@ verify_install() {
     "$INSTALL_DIR/bin/theme" \
     "$INSTALL_DIR/bin/ssh" \
     "$INSTALL_DIR/bin/container" \
+    "$INSTALL_DIR/bin/navigate" \
     "$INSTALL_DIR/themes/deep-ocean.toml" \
     "$INSTALL_DIR/delete.sh" \
     "$INSTALL_DIR/plugin/notify.sh" \
