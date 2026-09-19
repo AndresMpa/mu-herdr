@@ -1,0 +1,278 @@
+#!/usr/bin/env bash
+# List Docker/Podman machines, containers, and images. Enter attaches or runs.
+set -u
+
+HERE=$(cd "$(dirname "$0")/.." && pwd)
+HOME_DIR=${HOME:-}
+CONF="${HERDR_CONFIG_PATH:-$HOME_DIR/.config/herdr/config.toml}"
+CONF_DIR=$(dirname "$CONF")
+THEMES="$HERE/themes"
+[ -d "$THEMES" ] || THEMES="$CONF_DIR/themes"
+accent="#84FFFF"
+red="#F07178"
+fg="#C5C9D6"
+
+load_colors() {
+  local pal="$THEMES/deep-ocean.toml"
+  [ -f "$THEMES/active" ] && pal="$THEMES/$(tr -d '[:space:]' <"$THEMES/active").toml"
+  [ -f "$pal" ] || return 0
+  while IFS='=' read -r k v || [ -n "${k:-}" ]; do
+    k=$(printf '%s' "$k" | tr -d '[:space:]')
+    v=$(printf '%s' "$v" | tr -d '[:space:]' | tr -d '"')
+    case $k in
+      accent) accent=$v ;;
+      red) red=$v ;;
+      fg) fg=$v ;;
+    esac
+  done <"$pal"
+}
+
+hex_fg() {
+  local h=${1#\#}
+  [ ${#h} -eq 6 ] || return 0
+  printf '\033[38;2;%d;%d;%dm' $((0x${h:0:2})) $((0x${h:2:2})) $((0x${h:4:2}))
+}
+
+rst() { printf '\033[0m'; }
+
+list_rows() {
+  python3 <<'PY'
+import shutil, subprocess, sys
+
+def run(cmd):
+    try:
+        return subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL)
+    except Exception:
+        return ""
+
+def has(name):
+    return shutil.which(name) is not None
+
+engines = []
+if has("podman"):
+    engines.append("podman")
+if has("docker"):
+    engines.append("docker")
+
+if not engines:
+    print("x\tinstall docker or podman\t\t\t")
+    sys.exit(0)
+
+print("s\tmachines\t\t\t")
+any_m = False
+if has("podman"):
+    out = run(["podman", "machine", "list", "--format", "{{.Name}}\t{{.Running}}\t{{.VMType}}"])
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        name, running = parts[0].strip(), parts[1].strip().lower()
+        vm = parts[2].strip() if len(parts) > 2 else ""
+        state = "running" if running in ("true", "running", "yes", "1") else "stopped"
+        print("m\tpodman\t%s\t%s\t%s" % (name, state, vm))
+        any_m = True
+if has("docker"):
+    out = run(["docker", "context", "ls", "--format", "{{.Name}}\t{{.Current}}\t{{.DockerEndpoint}}"])
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 1 or not parts[0].strip():
+            continue
+        name = parts[0].strip()
+        current = (parts[1].strip() if len(parts) > 1 else "").lower()
+        endpoint = parts[2].strip() if len(parts) > 2 else ""
+        state = "current" if current in ("true", "*", "yes", "1") else ""
+        print("x\tdocker-context\t%s\t%s\t%s" % (name, state, endpoint))
+        any_m = True
+if not any_m:
+    print("x\t(no machines)\t\t\t")
+
+print("s\tcontainers\t\t\t")
+any_c = False
+for eng in engines:
+    out = run([eng, "ps", "-a", "--format", "{{.Names}}\t{{.State}}\t{{.Image}}\t{{.ID}}"])
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        name, state = parts[0].strip(), parts[1].strip().lower()
+        image = parts[2].strip() if len(parts) > 2 else ""
+        cid = parts[3].strip()[:12] if len(parts) > 3 else ""
+        print("c\t%s\t%s\t%s\t%s" % (eng, name, state, image))
+        any_c = True
+if not any_c:
+    print("x\t(no containers)\t\t\t")
+
+print("s\timages\t\t\t")
+any_i = False
+count = 0
+for eng in engines:
+    out = run([eng, "images", "--format", "{{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}"])
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        repo, tag = parts[0].strip(), parts[1].strip()
+        if repo in ("", "<none>") and tag in ("", "<none>"):
+            continue
+        ref = repo if tag in ("", "<none>") else "%s:%s" % (repo, tag)
+        size = parts[3].strip() if len(parts) > 3 else ""
+        print("i\t%s\t%s\t%s\t%s" % (eng, ref, size, parts[2].strip()[:12] if len(parts) > 2 else ""))
+        any_i = True
+        count += 1
+        if count >= 40:
+            break
+    if count >= 40:
+        break
+if not any_i:
+    print("x\t(no images)\t\t\t")
+PY
+}
+
+load_colors
+
+TMP=$(mktemp)
+list_rows >"$TMP" || { rm -f "$TMP"; echo "could not list containers" >&2; exit 1; }
+
+types=()
+engines=()
+names=()
+states=()
+extra=()
+while IFS= read -r line || [ -n "$line" ]; do
+  [ -z "$line" ] && continue
+  t=$(printf '%s' "$line" | cut -f1)
+  e=$(printf '%s' "$line" | cut -f2)
+  n=$(printf '%s' "$line" | cut -f3)
+  s=$(printf '%s' "$line" | cut -f4)
+  x=$(printf '%s' "$line" | cut -f5)
+  types+=("$t")
+  engines+=("$e")
+  names+=("$n")
+  states+=("$s")
+  extra+=("$x")
+done <"$TMP"
+rm -f "$TMP"
+
+n=${#types[@]}
+[ "$n" -gt 0 ] || { echo "nothing to show"; exit 1; }
+
+i=0
+first_sel() {
+  local x=0
+  while [ "$x" -lt "$n" ]; do
+    case ${types[$x]} in
+      m|c|i) i=$x; return ;;
+    esac
+    x=$((x + 1))
+  done
+}
+first_sel
+
+move() {
+  local dir=$1
+  local x=$i
+  while true; do
+    x=$((x + dir))
+    if [ "$x" -lt 0 ]; then
+      x=$((n - 1))
+    fi
+    if [ "$x" -ge "$n" ]; then
+      x=0
+    fi
+    case ${types[$x]} in
+      m|c|i) i=$x; return ;;
+    esac
+    [ "$x" -eq "$i" ] && return
+  done
+}
+
+status=""
+
+draw() {
+  local x t mark label
+  printf '\033[H\033[J'
+  printf '  MμHerdr containers  '
+  hex_fg "$accent"
+  printf 'j/k'
+  rst
+  printf '  Enter  '
+  hex_fg "$red"
+  printf 'Esc'
+  rst
+  printf '  cancel\n'
+  if [ -n "$status" ]; then
+    printf '  %s\n\n' "$status"
+  else
+    printf '\n'
+  fi
+  x=0
+  while [ "$x" -lt "$n" ]; do
+    t=${types[$x]}
+    if [ "$t" = s ]; then
+      printf '\n  '
+      hex_fg "$accent"
+      printf '%s\n' "${engines[$x]}"
+      rst
+    elif [ "$t" = x ]; then
+      printf '    '
+      hex_fg "$fg"
+      printf '%s %s\n' "${engines[$x]}" "${names[$x]}"
+      rst
+    else
+      if [ "$x" -eq "$i" ]; then
+        mark='❯'
+      else
+        mark=' '
+      fi
+      case $t in
+        m) label=$(printf '%-8s  %-16s  %s' "${engines[$x]}" "${names[$x]}" "${states[$x]}") ;;
+        c) label=$(printf '%-8s  %-16s  %-10s  %s' "${engines[$x]}" "${names[$x]}" "${states[$x]}" "${extra[$x]}") ;;
+        i) label=$(printf '%-8s  %-28s  %s' "${engines[$x]}" "${names[$x]}" "${states[$x]}") ;;
+        *) label=${names[$x]} ;;
+      esac
+      printf '  %s %s\n' "$mark" "$label"
+    fi
+    x=$((x + 1))
+  done
+}
+
+do_enter() {
+  local t=${types[$i]}
+  local eng=${engines[$i]}
+  local name=${names[$i]}
+  local state=${states[$i]}
+  printf '\033[H\033[J'
+  case $t in
+    m)
+      if [ "$state" != running ]; then
+        "$eng" machine start "$name" || { status="could not start $name"; return; }
+      fi
+      exec "$eng" machine ssh "$name"
+      ;;
+    c)
+      if [ "$state" != running ]; then
+        "$eng" start "$name" >/dev/null || { status="could not start $name"; return; }
+      fi
+      exec "$eng" exec -it "$name" sh -c 'exec bash || exec sh'
+      ;;
+    i)
+      exec "$eng" run -it --rm "$name" sh -c 'exec bash || exec sh'
+      ;;
+  esac
+}
+
+while true; do
+  draw
+  IFS= read -r -n 1 key || key=
+  if [ "$key" = j ]; then
+    move 1
+    status=""
+  elif [ "$key" = k ]; then
+    move -1
+    status=""
+  elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
+    exit 0
+  else
+    do_enter
+  fi
+done

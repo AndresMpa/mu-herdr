@@ -155,3 +155,12 @@ command = "bash ~/.config/herdr/bin/ssh"
 description = "SSH keys and hosts"
 width = "70%"
 height = "70%"
+
+# Docker / Podman machines, containers, images
+[[keys.command]]
+key = "prefix+p"
+type = "popup"
+command = "bash ~/.config/herdr/bin/container"
+description = "containers and machines"
+width = "80%"
+height = "75%"
