@@ -2,7 +2,7 @@
 
 A [Herdr](https://herdr.dev) config that follows [MμVim](https://github.com/AndresMpa/mu-vim) maps, with a **different action key**.
 
-MμVim leader is `Space`. Herdr prefix is **Alt-Space** (Linux) or **Option-Space** (Mac). The token in `config.toml` is always `alt+space`.
+MμVim leader is `Space`. Herdr prefix is **Ctrl-B**. The token in `config.toml` is `ctrl+b`. Option-Space cannot be the prefix on a Mac: it inserts a non-breaking space instead of a modifier chord.
 
 ## Install
 
@@ -13,7 +13,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Alt-Space`/`Option-Space` then `?` lists every binding.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Ctrl-B` then `?` lists every binding.
 
 ## Uninstall
 
@@ -28,11 +28,9 @@ Removes the config, state, and `old-herdr`. Leaves the herdr binary and package 
 
 | | MμVim | MμHerdr |
 | --- | --- | --- |
-| Action key | `Space` | `Alt-Space` / `Option-Space` (Mac) then the same letters |
+| Action key | `Space` | `Ctrl-B` then the same letters |
 
-Press Alt-Space (Option-Space on a Mac), **release**, then immediately the same letters you would type after Space in MμVim. Do not wait.
-
-On a Mac, set the terminal so Option is Alt (iTerm2: Profiles → Keys → Left Option key = Esc+).
+Press Ctrl-B, **release**, then immediately the same letters you would type after Space in MμVim. Do not wait.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
@@ -113,7 +111,7 @@ cd ~/.config/herdr
 ./debug.sh
 ```
 
-Then, in Herdr: Option-Space (or Alt-Space), **release**, then `?` right away. Help overlay means the prefix reached Herdr. If it does not, the terminal is not sending Option as Alt. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
+Then, in Herdr: Ctrl-B, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
 
 ```
 herdr config check
