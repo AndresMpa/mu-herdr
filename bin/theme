@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply MμVim palettes to all Herdr UI tokens (sidebar, panels, keybind help).
+# Apply MμHerdr palettes to all Herdr UI tokens (sidebar, panels, keybind help).
 # Also pushes OSC 10/11/4 so the terminal cells follow the same palette.
 set -u
 
@@ -199,7 +199,7 @@ pick2() {
   apply "$cur" 0
   while true; do
     printf '\033[H\033[J'
-    printf 'MμVim themes  j/k  Enter save  Esc cancel\n\n'
+    printf 'MμHerdr themes  j/k  Enter save  Esc cancel\n\n'
     n=1
     while [ $n -le $# ]; do
       eval "t=\${$n}"

@@ -1,11 +1,10 @@
-# MμHerdr — Herdr keys that follow MμVim, with a different action key.
-# Clone to ~/.config/herdr
+# MμHerdr — Herdr keys. Clone to ~/.config/herdr
 #
-# MμVim leader is Space. Herdr prefix is Ctrl-B (ctrl+b).
+# Prefix is Ctrl-B (ctrl+b).
 # Option-Space cannot enter prefix mode on a Mac: it inserts a
 # non-breaking space. cmd+b never reaches a Mac terminal.
 # Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
-# so the rest of the sequence is the same letters as MμVim (vv, vj, vk, gst).
+# so the rest of the sequence is the same letters (vv, vj, vk, gst).
 
 onboarding = false
 
@@ -71,7 +70,7 @@ split_vertical = ""
 # Space n → file tree
 toggle_sidebar = "prefix+n"
 
-# Ctrl-hjkl in MμVim moves windows. Same chords move Herdr panes (no prefix).
+# Ctrl-hjkl moves Herdr panes (no prefix).
 focus_pane_left = "ctrl+h"
 focus_pane_down = "ctrl+j"
 focus_pane_up = "ctrl+k"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Finish MμVim letter sequences after the Herdr prefix.
+# Finish MμHerdr letter sequences after the Herdr prefix.
 # Prefix mode only takes one key, so prefix+v / prefix+g open this
 # popup (or a detached shell) to read the rest: vv, vj, vk, gst, …
 set -u
