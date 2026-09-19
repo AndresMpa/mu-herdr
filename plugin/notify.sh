@@ -96,38 +96,98 @@ PY
 
 [ -n "${msg:-}" ] || exit 0
 
-send_system() {
-  if command -v "$HERDR_BIN" >/dev/null 2>&1; then
-    "$HERDR_BIN" notification show "MμHerdr" --body "$msg" --position top-right --sound "$sound" >/dev/null 2>&1 || true
+# macOS Notification Center uses the sending app's icon. -appIcon is ignored
+# on recent macOS; a tiny .app with the ram as AppIcon.icns is what shows.
+ensure_darwin_app() {
+  APP="$HERE/MuHerdr.app"
+  ICNS="$APP/Contents/Resources/AppIcon.icns"
+  [ -f "$ICNS" ] && [ -f "$ICON" ] && return 0
+  command -v sips >/dev/null 2>&1 || return 1
+  command -v iconutil >/dev/null 2>&1 || return 1
+  [ -f "$ICON" ] || return 1
+  SET="$HERE/.icon.iconset"
+  rm -rf "$SET" "$APP"
+  mkdir -p "$SET" "$APP/Contents/MacOS" "$APP/Contents/Resources"
+  sips -z 16 16 "$ICON" --out "$SET/icon_16x16.png" >/dev/null
+  sips -z 32 32 "$ICON" --out "$SET/icon_16x16@2x.png" >/dev/null
+  sips -z 32 32 "$ICON" --out "$SET/icon_32x32.png" >/dev/null
+  sips -z 64 64 "$ICON" --out "$SET/icon_32x32@2x.png" >/dev/null
+  sips -z 128 128 "$ICON" --out "$SET/icon_128x128.png" >/dev/null
+  sips -z 256 256 "$ICON" --out "$SET/icon_128x128@2x.png" >/dev/null
+  sips -z 256 256 "$ICON" --out "$SET/icon_256x256.png" >/dev/null
+  sips -z 512 512 "$ICON" --out "$SET/icon_256x256@2x.png" >/dev/null
+  sips -z 512 512 "$ICON" --out "$SET/icon_512x512.png" >/dev/null
+  sips -z 1024 1024 "$ICON" --out "$SET/icon_512x512@2x.png" >/dev/null
+  iconutil -c icns "$SET" -o "$ICNS" >/dev/null
+  rm -rf "$SET"
+  printf '%s\n' '#!/bin/sh' 'exit 0' > "$APP/Contents/MacOS/MuHerdr"
+  chmod +x "$APP/Contents/MacOS/MuHerdr"
+  cat > "$APP/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>MuHerdr</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.andresmpa.muherdr.notify</string>
+  <key>CFBundleName</key>
+  <string>MμHerdr</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+</dict>
+</plist>
+PLIST
+  LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+  if [ -x "$LSREG" ]; then
+    "$LSREG" -f "$APP" >/dev/null 2>&1 || true
   fi
+}
+
+send_system() {
+  local sent=0
   case "$(uname -s)" in
     Darwin)
+      ensure_darwin_app || true
       if command -v terminal-notifier >/dev/null 2>&1; then
-        if [ -f "$ICON" ]; then
-          terminal-notifier -title "MμHerdr" -message "$msg" -appIcon "$ICON" >/dev/null 2>&1 || true
-        else
-          terminal-notifier -title "MμHerdr" -message "$msg" >/dev/null 2>&1 || true
+        set -- -title "MμHerdr" -message "$msg"
+        [ "$sound" = done ] && set -- "$@" -sound Glass || set -- "$@" -sound default
+        [ -f "$ICON" ] && set -- "$@" -appIcon "$ICON" -contentImage "$ICON"
+        [ -d "$HERE/MuHerdr.app" ] && set -- "$@" -sender com.andresmpa.muherdr.notify
+        if terminal-notifier "$@" >/dev/null 2>&1; then
+          sent=1
         fi
-      else
+      fi
+      if [ "$sent" != 1 ]; then
         osascript -e "display notification \"$(printf '%s' "$msg" | sed 's/"/\\"/g')\" with title \"MμHerdr\"" >/dev/null 2>&1 || true
+        sent=1
       fi
       ;;
     Linux)
       if command -v notify-send >/dev/null 2>&1; then
         if [ -f "$ICON" ]; then
-          notify-send -a "MμHerdr" -i "$ICON" "MμHerdr" "$msg" >/dev/null 2>&1 || true
+          notify-send -a "MμHerdr" -i "$ICON" "MμHerdr" "$msg" >/dev/null 2>&1 && sent=1
         else
-          notify-send -a "MμHerdr" "MμHerdr" "$msg" >/dev/null 2>&1 || true
+          notify-send -a "MμHerdr" "MμHerdr" "$msg" >/dev/null 2>&1 && sent=1
         fi
-      elif command -v gdbus >/dev/null 2>&1; then
+      fi
+      if [ "$sent" != 1 ] && command -v gdbus >/dev/null 2>&1; then
         gdbus call --session \
           --dest org.freedesktop.Notifications \
           --object-path /org/freedesktop/Notifications \
           --method org.freedesktop.Notifications.Notify \
-          "MμHerdr" 0 "$ICON" "MμHerdr" "$msg" "[]" "{}" 8000 >/dev/null 2>&1 || true
+          "MμHerdr" 0 "${ICON:-}" "MμHerdr" "$msg" "[]" "{}" 8000 >/dev/null 2>&1 && sent=1
       fi
       ;;
   esac
+  # Herdr's own banner cannot take a custom icon; only use it if native send failed.
+  if [ "$sent" != 1 ] && command -v "$HERDR_BIN" >/dev/null 2>&1; then
+    "$HERDR_BIN" notification show "MμHerdr" --body "$msg" --position top-right --sound "$sound" >/dev/null 2>&1 || true
+  fi
 }
 
 send_slack() {

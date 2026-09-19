@@ -6,4 +6,6 @@ session.json
 .plugins.lock
 themes/active
 notify.toml
+plugin/MuHerdr.app/
+plugin/.icon.iconset/
 
