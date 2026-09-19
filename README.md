@@ -1,6 +1,6 @@
 # MμHerdr
 
-A [Herdr](https://herdr.dev) config. Prefix (command mode) is **`d`** by default: press `d`, release, then the same letters as Space in MμVim. `./install.sh` writes that prefix (you can type another token, e.g. `ctrl+b`). Option-Space cannot be the prefix on a Mac: it inserts a non-breaking space.
+A [Herdr](https://herdr.dev) config. Prefix (command mode) is **Option-Esc** on a Mac and **Alt-Esc** elsewhere (`alt+esc` in `config.toml`). Herdr cannot bind bare Option/Alt. `./install.sh` writes that prefix (you can type another token). Option-Space inserts a non-breaking space and cannot be the prefix.
 
 ## Install
 
@@ -11,7 +11,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (**`d`** unless you type another). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. `d` then `?` lists every binding. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (**Option-Esc** / **Alt-Esc** unless you type another). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. Option-Esc / Alt-Esc then `?` lists every binding. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
 
 ## Uninstall
 
@@ -26,9 +26,9 @@ Removes MμHerdr config, state, cache, `old-herdr`, the notify plugin link, and 
 
 | | MμHerdr |
 | --- | --- |
-| Action key | `d` then the map letters |
+| Action key | Option-Esc (Mac) / Alt-Esc then the map letters |
 
-Press `d`, **release**, then immediately the map letters (same as after Space in MμVim). Do not wait. `d` then `?` lists every binding. `./install.sh` sets this prefix; default is `d`.
+Press Option-Esc (Mac) or Alt-Esc, **release**, then immediately the map letters (same as after Space in MμVim). Do not wait. Prefix then `?` lists every binding. `./install.sh` sets this; default token is `alt+esc`.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
@@ -76,7 +76,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space gsw` | `sw` | `git switch …` |
 | `Space ggg` | `gg` | `git …` |
 
-With prefix `d`, detach is `d` then `d`. Close the focused pane with `d` then `q` (MμVim `Space q`). Resize mode is `d` then `r`. Esc cancels a chord. `d` then `o` jumps to the pane that raised the last notification.
+Detach is prefix `d` or prefix `q`. Close the focused pane with prefix `x`. Resize is prefix `r`. Esc cancels a chord. Prefix `o` jumps to the pane that raised the last notification.
 
 ## Notifications
 
@@ -159,7 +159,7 @@ Prefix `e` opens a picker of **keys** (`~/.ssh/*.pub`) and **hosts** (`Host` lin
 This is OpenSSH, not `herdr machine` (that is for a remote Herdr server). Passphrases are typed in the popup. Private key material is never printed.
 
 ```
-d, e
+Prefix, e
 ```
 
 ## Containers
@@ -167,7 +167,7 @@ d, e
 Prefix `p` opens a **theme-style modal** of **containers only** (Docker, Podman, or nerdctl `ps -a`). `j`/`k` move, Enter **adds the container as a pane in the current workspace**, Esc cancels. Stopped containers are started first, then `exec -it` (bash or sh). The pane is renamed `docker:name` / `podman:name`.
 
 ```
-d, p
+Prefix, p
 ```
 
 ## Theme
@@ -205,7 +205,7 @@ cd ~/.config/herdr
 ./debug.sh
 ```
 
-Then, in Herdr: `d`, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
+Then, in Herdr: Option-Esc / Alt-Esc, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
 
 ```
 herdr config check
