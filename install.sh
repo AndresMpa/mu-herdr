@@ -73,7 +73,7 @@ place_config() {
 }
 
 chmod_scripts() {
-  for f in "$INSTALL_DIR/bin/chord" "$INSTALL_DIR/bin/theme" "$INSTALL_DIR/debug.sh"; do
+  for f in "$INSTALL_DIR/bin/chord" "$INSTALL_DIR/bin/theme" "$INSTALL_DIR/bin/ssh" "$INSTALL_DIR/debug.sh"; do
     if [ -f "$f" ]; then
       chmod +x "$f"
     fi
