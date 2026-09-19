@@ -38,7 +38,7 @@ rst() { printf '\033[0m'; }
 
 list_rows() {
   python3 <<'PY'
-import shutil, subprocess, sys
+import os, shutil, subprocess, sys
 
 def run(cmd):
     try:
@@ -50,9 +50,16 @@ def has(name):
     return shutil.which(name) is not None
 
 engines = []
+seen_bin = set()
 for name in ("podman", "docker", "nerdctl"):
-    if has(name):
-        engines.append(name)
+    path = shutil.which(name)
+    if not path:
+        continue
+    real = os.path.realpath(path)
+    if real in seen_bin:
+        continue
+    seen_bin.add(real)
+    engines.append(name)
 
 if not engines:
     print("x\tinstall docker, podman, or nerdctl\t\t\t")
@@ -76,6 +83,7 @@ if not any_m:
 
 print("s\tcontainers\t\t\t")
 any_c = False
+seen_c = set()
 for eng in engines:
     out = run([eng, "ps", "-a", "--format", "{{.Names}}\t{{.State}}\t{{.Image}}\t{{.ID}}"])
     for line in out.splitlines():
@@ -84,7 +92,13 @@ for eng in engines:
             continue
         name, state = parts[0].strip(), parts[1].strip().lower()
         image = parts[2].strip() if len(parts) > 2 else ""
-        cid = parts[3].strip()[:12] if len(parts) > 3 else ""
+        cid = (parts[3].strip() if len(parts) > 3 else "")[:12]
+        key = cid or ("%s/%s" % (eng, name))
+        if key in seen_c or name in seen_c:
+            continue
+        seen_c.add(key)
+        if name:
+            seen_c.add(name)
         print("c\t%s\t%s\t%s\t%s" % (eng, name, state, image))
         any_c = True
 if not any_c:
@@ -93,6 +107,7 @@ if not any_c:
 print("s\timages\t\t\t")
 any_i = False
 count = 0
+seen_i = set()
 for eng in engines:
     out = run([eng, "images", "--format", "{{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}"])
     for line in out.splitlines():
@@ -103,8 +118,14 @@ for eng in engines:
         if repo in ("", "<none>") and tag in ("", "<none>"):
             continue
         ref = repo if tag in ("", "<none>") else "%s:%s" % (repo, tag)
+        iid = (parts[2].strip() if len(parts) > 2 else "")[:12]
         size = parts[3].strip() if len(parts) > 3 else ""
-        print("i\t%s\t%s\t%s\t%s" % (eng, ref, size, parts[2].strip()[:12] if len(parts) > 2 else ""))
+        key = iid or ("%s/%s" % (eng, ref))
+        if key in seen_i or ref in seen_i:
+            continue
+        seen_i.add(key)
+        seen_i.add(ref)
+        print("i\t%s\t%s\t%s\t%s" % (eng, ref, size, iid))
         any_i = True
         count += 1
         if count >= 40:
