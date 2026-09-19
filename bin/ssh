@@ -1,0 +1,278 @@
+#!/usr/bin/env bash
+# List SSH keys and ~/.ssh/config hosts. Enter loads a key or opens ssh.
+set -u
+
+HERE=$(cd "$(dirname "$0")/.." && pwd)
+HOME_DIR=${HOME:-}
+SSH_DIR="${HOME_DIR}/.ssh"
+CONF="${HERDR_CONFIG_PATH:-$HOME_DIR/.config/herdr/config.toml}"
+CONF_DIR=$(dirname "$CONF")
+THEMES="$HERE/themes"
+[ -d "$THEMES" ] || THEMES="$CONF_DIR/themes"
+accent="#84FFFF"
+red="#F07178"
+fg="#C5C9D6"
+
+load_colors() {
+  local pal="$THEMES/deep-ocean.toml"
+  [ -f "$THEMES/active" ] && pal="$THEMES/$(tr -d '[:space:]' <"$THEMES/active").toml"
+  [ -f "$pal" ] || return 0
+  while IFS='=' read -r k v || [ -n "${k:-}" ]; do
+    k=$(printf '%s' "$k" | tr -d '[:space:]')
+    v=$(printf '%s' "$v" | tr -d '[:space:]' | tr -d '"')
+    case $k in
+      accent) accent=$v ;;
+      red) red=$v ;;
+      fg) fg=$v ;;
+    esac
+  done <"$pal"
+}
+
+hex_fg() {
+  local h=${1#\#}
+  [ ${#h} -eq 6 ] || return 0
+  printf '\033[38;2;%d;%d;%dm' $((0x${h:0:2})) $((0x${h:2:2})) $((0x${h:4:2}))
+}
+
+rst() { printf '\033[0m'; }
+
+list_rows() {
+  python3 - "$SSH_DIR" <<'PY'
+import glob, os, subprocess, sys
+
+ssh_dir = sys.argv[1]
+agent = ""
+try:
+    agent = subprocess.check_output(["ssh-add", "-l"], text=True, stderr=subprocess.DEVNULL)
+except Exception:
+    agent = ""
+
+print("s\tkeys\t\t")
+pubs = sorted(glob.glob(os.path.join(ssh_dir, "*.pub")))
+if not pubs:
+    print("x\t(no public keys in ~/.ssh)\t\t")
+for pub in pubs:
+    if pub.endswith("-cert.pub"):
+        continue
+    priv = pub[:-4]
+    name = os.path.basename(priv)
+    fp = ""
+    try:
+        out = subprocess.check_output(["ssh-keygen", "-l", "-f", pub], text=True, stderr=subprocess.DEVNULL)
+        fp = out.split()[1] if out.split() else ""
+    except Exception:
+        fp = ""
+    in_agent = "1" if fp and fp in agent else "0"
+    print("k\t%s\t%s\t%s\t%s" % (name, priv, fp, in_agent))
+
+print("s\thosts\t\t")
+cfg = os.path.join(ssh_dir, "config")
+hosts = []
+if os.path.isfile(cfg):
+    current = []
+    meta = {}
+    def flush():
+        if not current:
+            return
+        user = meta.get("user", "")
+        hostname = meta.get("hostname", "")
+        identity = meta.get("identityfile", "")
+        if identity.startswith("~"):
+            identity = os.path.expanduser(identity)
+        for h in current:
+            if "*" in h or "?" in h:
+                continue
+            dest = hostname or h
+            who = ("%s@%s" % (user, dest)) if user else dest
+            hosts.append((h, who, identity))
+    with open(cfg) as f:
+        for raw in f:
+            line = raw.split("#", 1)[0].strip()
+            if not line:
+                continue
+            parts = line.split(None, 1)
+            if len(parts) < 2:
+                continue
+            key, val = parts[0].lower(), parts[1].strip().strip('"')
+            if key == "host":
+                flush()
+                current = val.split()
+                meta = {}
+            elif key == "hostname":
+                meta["hostname"] = val
+            elif key == "user":
+                meta["user"] = val
+            elif key == "identityfile":
+                meta["identityfile"] = val
+        flush()
+if not hosts:
+    print("x\t(no Host entries in ~/.ssh/config)\t\t")
+for h, who, ident in hosts:
+    print("h\t%s\t%s\t%s" % (h, who, ident))
+PY
+}
+
+load_colors
+
+TMP=$(mktemp)
+list_rows >"$TMP" || { rm -f "$TMP"; echo "could not list SSH keys/hosts" >&2; exit 1; }
+
+types=()
+names=()
+paths=()
+extra=()
+flags=()
+while IFS= read -r line || [ -n "$line" ]; do
+  [ -z "$line" ] && continue
+  t=$(printf '%s' "$line" | cut -f1)
+  n=$(printf '%s' "$line" | cut -f2)
+  p=$(printf '%s' "$line" | cut -f3)
+  x=$(printf '%s' "$line" | cut -f4)
+  f=$(printf '%s' "$line" | cut -f5)
+  types+=("$t")
+  names+=("$n")
+  paths+=("$p")
+  extra+=("$x")
+  flags+=("$f")
+done <"$TMP"
+rm -f "$TMP"
+
+n=${#types[@]}
+[ "$n" -gt 0 ] || { echo "nothing to show"; exit 1; }
+
+i=0
+first_sel() {
+  local x=0
+  while [ "$x" -lt "$n" ]; do
+    case ${types[$x]} in
+      k|h) i=$x; return ;;
+    esac
+    x=$((x + 1))
+  done
+}
+first_sel
+
+move() {
+  local dir=$1
+  local x=$i
+  while true; do
+    x=$((x + dir))
+    if [ "$x" -lt 0 ]; then
+      x=$((n - 1))
+    fi
+    if [ "$x" -ge "$n" ]; then
+      x=0
+    fi
+    case ${types[$x]} in
+      k|h) i=$x; return ;;
+    esac
+    [ "$x" -eq "$i" ] && return
+  done
+}
+
+active_key=""
+status=""
+
+draw() {
+  local x t label mark
+  printf '\033[H\033[J'
+  printf '  MμHerdr ssh  '
+  hex_fg "$accent"
+  printf 'j/k'
+  rst
+  printf '  Enter  '
+  hex_fg "$red"
+  printf 'Esc'
+  rst
+  printf '  cancel\n'
+  if [ -n "$active_key" ]; then
+    printf '  key %s\n' "$active_key"
+  else
+    printf '\n'
+  fi
+  if [ -n "$status" ]; then
+    printf '  %s\n\n' "$status"
+  else
+    printf '\n'
+  fi
+  x=0
+  while [ "$x" -lt "$n" ]; do
+    t=${types[$x]}
+    if [ "$t" = s ]; then
+      printf '\n  '
+      hex_fg "$accent"
+      printf '%s\n' "${names[$x]}"
+      rst
+    elif [ "$t" = x ]; then
+      printf '    '
+      hex_fg "$fg"
+      printf '%s\n' "${names[$x]}"
+      rst
+    else
+      if [ "$x" -eq "$i" ]; then
+        mark='❯'
+      else
+        mark=' '
+      fi
+      if [ "$t" = k ]; then
+        if [ "${flags[$x]}" = 1 ]; then
+          label=$(printf '%-16s  agent  %s' "${names[$x]}" "${extra[$x]}")
+        else
+          label=$(printf '%-16s  %s' "${names[$x]}" "${extra[$x]}")
+        fi
+      else
+        label=$(printf '%-16s  %s' "${names[$x]}" "${paths[$x]}")
+      fi
+      printf '  %s %s\n' "$mark" "$label"
+    fi
+    x=$((x + 1))
+  done
+}
+
+# Re-parse keys so fingerprint+agent are both available.
+# extra = in_agent for k, identity for h
+# paths = private path for k, user@host for h
+# names = key file or Host alias
+
+do_add() {
+  local key=${paths[$i]}
+  [ -f "$key" ] || { status="missing $key"; return; }
+  if ssh-add --apple-use-keychain "$key" >/dev/null 2>&1 \
+    || ssh-add "$key" >/dev/null 2>&1; then
+    active_key=$key
+    flags[$i]=1
+    status="loaded ${names[$i]}"
+  else
+    status="could not ssh-add ${names[$i]} (passphrase?)"
+  fi
+}
+
+do_connect() {
+  local host=${names[$i]}
+  local ident=$active_key
+  [ -z "$ident" ] && ident=${extra[$i]}
+  printf '\033[H\033[J'
+  if [ -n "$ident" ] && [ -f "$ident" ]; then
+    exec ssh -t -i "$ident" -o IdentitiesOnly=yes "$host"
+  fi
+  exec ssh -t "$host"
+}
+
+while true; do
+  draw
+  IFS= read -r -n 1 key || key=
+  if [ "$key" = j ]; then
+    move 1
+    status=""
+  elif [ "$key" = k ]; then
+    move -1
+    status=""
+  elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
+    exit 0
+  else
+    case ${types[$i]} in
+      k) do_add ;;
+      h) do_connect ;;
+    esac
+  fi
+done

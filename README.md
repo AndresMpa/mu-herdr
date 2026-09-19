@@ -49,6 +49,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space n` | prefix `n` | Sidebar (tree) |
 | `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
 | `Space th` | prefix `t` then `h` | Theme picker |
+| | prefix `e` | SSH keys and hosts |
 | `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
@@ -144,6 +145,21 @@ telegram_chat_id =
 ```
 
 Set `slack = true` and an Incoming Webhooks URL, and/or `telegram = true` with a BotFather token and chat id. Env vars `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_CHAT_ID` also work. Chat lines are prefixed `MμHerdr:`. `./delete.sh` unlinks the plugin and does not keep the secrets file in git.
+
+## SSH
+
+Prefix `e` opens a picker of **keys** (`~/.ssh/*.pub`) and **hosts** (`Host` lines in `~/.ssh/config`). Wildcards (`*` / `?`) are skipped. Chrome matches the theme picker: indented, `j`/`k`, Enter, Esc, `❯`.
+
+| Row | What you see | Enter |
+| --- | --- | --- |
+| key | filename, `agent` if `ssh-add -l` has it, fingerprint | `ssh-add` that private key (uses Keychain on Mac). Marks it for the next host. |
+| host | Host alias and `user@hostname` | `ssh` to that alias in the popup. Uses the marked key if you loaded one, otherwise the config `IdentityFile`. |
+
+This is OpenSSH, not `herdr machine` (that is for a remote Herdr server). Passphrases are typed in the popup. Private key material is never printed.
+
+```
+Ctrl-B, e
+```
 
 ## Theme
 
