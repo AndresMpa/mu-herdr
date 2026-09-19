@@ -3,11 +3,15 @@
 # --brand-only  prepare Mac notifier app / Linux desktop icon, then exit.
 set -u
 
+HERE="${HERDR_PLUGIN_ROOT:-$(cd "$(dirname "$0")" && pwd)}"
 CONF="${HERDR_CONFIG_PATH:-${HOME:-}/.config/herdr/config.toml}"
-CONF_DIR=$(dirname "$CONF")
+CONF_DIR="${HERDR_PLUGIN_CONFIG_DIR:-$(dirname "$CONF")}"
 NOTIFY_TOML="$CONF_DIR/notify.toml"
+if [ ! -f "$NOTIFY_TOML" ] && [ -f "$HERE/notify.example" ]; then
+  mkdir -p "$CONF_DIR"
+  cp "$HERE/notify.example" "$NOTIFY_TOML"
+fi
 HERDR_BIN=${HERDR_BIN_PATH:-herdr}
-HERE=$(cd "$(dirname "$0")" && pwd)
 ICON="$HERE/herdr.png"
 [ -f "$ICON" ] || ICON="$HERE/herdr.svg"
 HOME_DIR=${HOME:-}
