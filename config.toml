@@ -99,7 +99,8 @@ resize_pane_down = ""
 resize_pane_up = ""
 resize_pane_right = ""
 
-workspace_picker = "prefix+w"
+# Native picker would close on select. prefix+w is our overlay until Esc.
+workspace_picker = ""
 # prefix+g starts git chords (gst, gpl, …). Unbind workspace goto.
 goto = ""
 new_workspace = "prefix+shift+n"
@@ -157,6 +158,15 @@ command = "bash ~/.config/herdr/bin/ssh"
 description = "SSH"
 width = "70%"
 height = "70%"
+
+# Navigate stays until Esc (hjkl panes, 1-9 tabs)
+[[keys.command]]
+key = "prefix+w"
+type = "popup"
+command = "bash ~/.config/herdr/bin/navigate"
+description = "Navigate"
+width = "70%"
+height = "18%"
 
 # Docker / Podman / nerdctl containers
 [[keys.command]]

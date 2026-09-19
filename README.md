@@ -51,6 +51,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space th` | prefix `t` then `h` | Theme picker |
 | | prefix `e` | SSH keys and hosts |
 | | prefix `p` | Docker/Podman containers |
+| | prefix `w` | Navigate until Esc (`h/j/k/l` panes, `1-9` tabs) |
 | `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
@@ -76,7 +77,19 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space gsw` | `sw` | `git switch …` |
 | `Space ggg` | `gg` | `git …` |
 
-With prefix `d`, detach is `d` then `d`. Close the focused pane with `d` then `q` (MμVim `Space q`). Resize mode is `d` then `r`. Esc cancels a chord. `d` then `o` jumps to the pane that raised the last notification.
+With prefix `d`, detach is `d` then `q`. Close the focused pane with `d` then `x` if that is how close_pane is bound. Resize is `d` then `r`. Esc cancels a chord. `d` then `o` jumps to the pane that raised the last notification.
+
+## Navigate
+
+Prefix `w` opens a **sticky overlay** (not Herdr's built-in picker, which can close on select). It stays until **Esc** (or `q`):
+
+| Key | Action |
+| --- | --- |
+| `h` / `j` / `k` / `l` | Focus pane left / down / up / right |
+| `1`–`9` | Focus tab |
+| `Esc` / `q` | Back to terminal mode |
+
+Moving does not exit the mode. Splits, themes, SSH, and containers stay on prefix (Herdr cannot put those inside native Navigate).
 
 ## Notifications
 
