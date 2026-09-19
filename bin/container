@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# List Docker/Podman machines, containers, and images. Enter attaches or runs.
+# Theme-style modal: pick a Docker/Podman/nerdctl container (or machine/image)
+# and add it as a pane in the current Herdr workspace.
 set -u
 
 HERE=$(cd "$(dirname "$0")/.." && pwd)
@@ -49,13 +50,12 @@ def has(name):
     return shutil.which(name) is not None
 
 engines = []
-if has("podman"):
-    engines.append("podman")
-if has("docker"):
-    engines.append("docker")
+for name in ("podman", "docker", "nerdctl"):
+    if has(name):
+        engines.append(name)
 
 if not engines:
-    print("x\tinstall docker or podman\t\t\t")
+    print("x\tinstall docker, podman, or nerdctl\t\t\t")
     sys.exit(0)
 
 print("s\tmachines\t\t\t")
@@ -70,18 +70,6 @@ if has("podman"):
         vm = parts[2].strip() if len(parts) > 2 else ""
         state = "running" if running in ("true", "running", "yes", "1") else "stopped"
         print("m\tpodman\t%s\t%s\t%s" % (name, state, vm))
-        any_m = True
-if has("docker"):
-    out = run(["docker", "context", "ls", "--format", "{{.Name}}\t{{.Current}}\t{{.DockerEndpoint}}"])
-    for line in out.splitlines():
-        parts = line.split("\t")
-        if len(parts) < 1 or not parts[0].strip():
-            continue
-        name = parts[0].strip()
-        current = (parts[1].strip() if len(parts) > 1 else "").lower()
-        endpoint = parts[2].strip() if len(parts) > 2 else ""
-        state = "current" if current in ("true", "*", "yes", "1") else ""
-        print("x\tdocker-context\t%s\t%s\t%s" % (name, state, endpoint))
         any_m = True
 if not any_m:
     print("x\t(no machines)\t\t\t")
@@ -195,11 +183,11 @@ draw() {
   hex_fg "$accent"
   printf 'j/k'
   rst
-  printf '  Enter  '
+  printf '  Enter add  '
   hex_fg "$red"
   printf 'Esc'
   rst
-  printf '  cancel\n'
+  printf ' cancel\n'
   if [ -n "$status" ]; then
     printf '  %s\n\n' "$status"
   else
@@ -236,29 +224,60 @@ draw() {
   done
 }
 
+parse_pane_id() {
+  python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+p = (d.get("result") or {}).get("pane") or {}
+print(p.get("pane_id") or "")
+'
+}
+
+add_workspace_pane() {
+  local title=$1
+  shift
+  local json id pane
+  pane=${HERDR_ACTIVE_PANE_ID:-}
+  if [ -n "$pane" ]; then
+    json=$(herdr pane split --pane "$pane" --direction right --focus) || return 1
+  else
+    json=$(herdr pane split --current --direction right --focus) || return 1
+  fi
+  id=$(printf '%s' "$json" | parse_pane_id)
+  [ -n "$id" ] || return 1
+  herdr pane rename "$id" "$title" >/dev/null 2>&1 || true
+  herdr pane run "$id" "$@" >/dev/null 2>&1 || return 1
+}
+
 do_enter() {
   local t=${types[$i]}
   local eng=${engines[$i]}
   local name=${names[$i]}
   local state=${states[$i]}
-  printf '\033[H\033[J'
   case $t in
     m)
       if [ "$state" != running ]; then
-        "$eng" machine start "$name" || { status="could not start $name"; return; }
+        "$eng" machine start "$name" >/dev/null 2>&1 || { status="could not start $name"; return; }
       fi
-      exec "$eng" machine ssh "$name"
+      add_workspace_pane "$eng:$name" "$eng" machine ssh "$name" \
+        || { status="could not add $name"; return; }
       ;;
     c)
       if [ "$state" != running ]; then
-        "$eng" start "$name" >/dev/null || { status="could not start $name"; return; }
+        "$eng" start "$name" >/dev/null 2>&1 || { status="could not start $name"; return; }
       fi
-      exec "$eng" exec -it "$name" sh -c 'exec bash || exec sh'
+      add_workspace_pane "$eng:$name" "$eng" exec -it "$name" sh -c 'exec bash || exec sh' \
+        || { status="could not add $name"; return; }
       ;;
     i)
-      exec "$eng" run -it --rm "$name" sh -c 'exec bash || exec sh'
+      add_workspace_pane "$eng:$name" "$eng" run -it --rm "$name" sh -c 'exec bash || exec sh' \
+        || { status="could not add $name"; return; }
+      ;;
+    *)
+      return
       ;;
   esac
+  exit 0
 }
 
 while true; do
