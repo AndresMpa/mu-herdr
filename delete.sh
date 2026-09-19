@@ -52,6 +52,8 @@ if looks_like_herdr "$INSTALL_DIR"; then
   add_target "$CACHE_DIR" "Herdr cache"
   add_target "$BACKUP_DIR" "Backup from install.sh"
   add_target "$INSTALL_DIR" "MμHerdr config (~/.config/herdr)"
+  add_target "$HOME_DIR/.local/share/applications/muherdr.desktop" "Linux desktop entry"
+  add_target "$HOME_DIR/.local/share/icons/hicolor/512x512/apps/muherdr.png" "Linux notification icon"
 fi
 
 if looks_like_herdr "$SCRIPT_DIR" \

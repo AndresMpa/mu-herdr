@@ -170,11 +170,39 @@ link_notify_plugin() {
   fi
 }
 
+install_notify_os() {
+  case "$(uname -s)" in
+    Darwin)
+      if ! command_exists terminal-notifier; then
+        if command_exists brew; then
+          echo "Installing terminal-notifier for Mac banners."
+          brew install terminal-notifier
+        else
+          echo "Install terminal-notifier for Mac banners: brew install terminal-notifier"
+        fi
+      fi
+      if [ -x "$INSTALL_DIR/plugin/notify.sh" ]; then
+        bash "$INSTALL_DIR/plugin/notify.sh" --brand-only || true
+      fi
+      echo "Allow MμHerdr in System Settings → Notifications if macOS asks."
+      ;;
+    Linux)
+      if ! command_exists notify-send; then
+        echo "Install libnotify for Linux banners (apt: libnotify-bin, dnf/pacman: libnotify)."
+      fi
+      if [ -x "$INSTALL_DIR/plugin/notify.sh" ]; then
+        bash "$INSTALL_DIR/plugin/notify.sh" --brand-only || true
+      fi
+      ;;
+  esac
+}
+
 if command_exists herdr; then
   HERDR_CONFIG_PATH="$INSTALL_DIR/config.toml" herdr config check || true
   link_notify_plugin
   herdr server reload-config >/dev/null 2>&1 || true
 fi
+install_notify_os
 
 LABEL=$(prefix_label)
 
