@@ -1,6 +1,6 @@
 # MμHerdr
 
-A [Herdr](https://herdr.dev) config. Prefix (command mode) is **Option-A** on a Mac and **Alt-A** elsewhere (`alt+a` in `config.toml`). Herdr cannot bind bare Option/Alt, and Option-Esc is swallowed as Esc. `./install.sh` writes that prefix (you can type another token). On a Mac, set the terminal so Option is Alt (iTerm2: Left Option key = Esc+), or Option-A types å instead of prefix.
+A [Herdr](https://herdr.dev) config. Prefix (command mode) is **Shift-Space** (`shift+space` in `config.toml`). `./install.sh` writes that prefix (you can type another token). If Shift-Space does nothing, the terminal is sending Space; try another prefix.
 
 ## Install
 
@@ -11,7 +11,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (**Option-A** / **Alt-A** unless you type another). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. Option-A / Alt-A then `?` lists every binding. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (**Shift-Space** unless you type another). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. Shift-Space then `?` lists every binding. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
 
 ## Uninstall
 
@@ -26,9 +26,9 @@ Removes MμHerdr config, state, cache, `old-herdr`, the notify plugin link, and 
 
 | | MμHerdr |
 | --- | --- |
-| Action key | Option-A (Mac) / Alt-A then the map letters |
+| Action key | Shift-Space then the map letters |
 
-Press Option-A (Mac) or Alt-A, **release**, then immediately the map letters (same as after Space in MμVim). Do not wait. Prefix then `?` lists every binding. `./install.sh` sets this; default token is `alt+a`.
+Press Shift-Space, **release**, then immediately the map letters (same as after Space in MμVim). Do not wait. Prefix then `?` lists every binding. `./install.sh` sets this; default token is `shift+space`.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
@@ -205,7 +205,7 @@ cd ~/.config/herdr
 ./debug.sh
 ```
 
-Then, in Herdr: Option-A / Alt-A, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
+Then, in Herdr: Shift-Space, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
 
 ```
 herdr config check
