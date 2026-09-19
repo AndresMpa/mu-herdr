@@ -160,8 +160,12 @@ link_notify_plugin() {
   command_exists herdr || return 0
   [ -f "$INSTALL_DIR/plugin/herdr-plugin.toml" ] || return 0
   herdr plugin unlink muherdr.notify >/dev/null 2>&1 || true
-  herdr plugin link --enabled "$INSTALL_DIR/plugin" >/dev/null 2>&1 \
-    || echo "Could not link the notify plugin. Start herdr and re-run ./install.sh."
+  if herdr plugin link "$INSTALL_DIR/plugin" --enabled; then
+    echo "Linked notify plugin muherdr.notify"
+  else
+    echo "Could not link the notify plugin. From a Herdr pane run:"
+    echo "  herdr plugin link $INSTALL_DIR/plugin --enabled"
+  fi
 }
 
 if command_exists herdr; then
