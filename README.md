@@ -1,4 +1,4 @@
-# MμHerdr
+![Mμ Herdr](./.doc/muherdr.png)
 
 [Herdr](https://herdr.dev) config. After the prefix, letters match [MμVim](https://github.com/AndresMpa/mu-vim) where a Herdr analog exists.
 
