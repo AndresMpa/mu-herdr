@@ -192,7 +192,7 @@ draw() {
   local x t label mark
   printf '\033[?25l\033[H'
   printf '\033[K'
-  printf '  SSH  '
+  printf '  MμHerdr ssh  '
   hex_fg "$accent"
   printf 'j/k'
   rst

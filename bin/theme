@@ -211,7 +211,7 @@ pick2() {
   apply "$cur" 0
   while true; do
     printf '\033[H\033[J'
-    printf '  Themes  '
+    printf '  MμHerdr themes  '
     hex_fg "$accent"
     printf 'j/k'
     rst
