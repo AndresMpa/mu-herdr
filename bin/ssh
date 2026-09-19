@@ -225,11 +225,6 @@ draw() {
       printf '    %s\n' "$(clip "${names[$x]}")"
       rst
     else
-      if [ "$x" -eq "$i" ]; then
-        mark='>'
-      else
-        mark=' '
-      fi
       if [ "$t" = k ]; then
         if [ "${flags[$x]}" = 1 ]; then
           label=$(printf '%-16s  agent  %s' "${names[$x]}" "${extra[$x]}")
@@ -239,7 +234,11 @@ draw() {
       else
         label=$(printf '%-16s  %s' "${names[$x]}" "${paths[$x]}")
       fi
-      printf '  %s %s\n' "$mark" "$(clip "$label")"
+      if [ "$x" -eq "$i" ]; then
+        printf '  ❯ %s\n' "$(clip "$label")"
+      else
+        printf '    %s\n' "$(clip "$label")"
+      fi
     fi
     x=$((x + 1))
   done
