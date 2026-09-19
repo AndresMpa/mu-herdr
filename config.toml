@@ -156,7 +156,7 @@ description = "SSH keys and hosts"
 width = "70%"
 height = "70%"
 
-# Docker / Podman machines, containers, images
+# Docker / Podman / nerdctl containers
 [[keys.command]]
 key = "prefix+p"
 type = "popup"

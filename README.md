@@ -50,7 +50,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
 | `Space th` | prefix `t` then `h` | Theme picker |
 | | prefix `e` | SSH keys and hosts |
-| | prefix `p` | Docker/Podman machines, containers, images |
+| | prefix `p` | Docker/Podman containers |
 | `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
@@ -164,15 +164,7 @@ Ctrl-B, e
 
 ## Containers
 
-Prefix `p` opens a **theme-style modal**: `j`/`k` move, Enter **adds the selection as a pane in the current workspace**, Esc cancels. Lists every container Docker, Podman, or nerdctl can see (`ps -a`), plus Podman machines and images.
-
-| Row | Enter |
-| --- | --- |
-| container | start if stopped, split a pane, `exec -it` (bash or sh) |
-| Podman machine | start if stopped, split a pane, `machine ssh` |
-| image | split a pane, `run -it --rm` (bash or sh) |
-
-The new pane is renamed `docker:name` / `podman:name` and stays in the workspace after the modal closes.
+Prefix `p` opens a **theme-style modal** of **containers only** (Docker, Podman, or nerdctl `ps -a`). `j`/`k` move, Enter **adds the container as a pane in the current workspace**, Esc cancels. Stopped containers are started first, then `exec -it` (bash or sh). The pane is renamed `docker:name` / `podman:name`.
 
 ```
 Ctrl-B, p
