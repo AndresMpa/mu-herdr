@@ -100,6 +100,13 @@ resize_pane_up = ""
 resize_pane_right = ""
 
 workspace_picker = "prefix+w"
+# Native Navigate: j/k and up/down move the workspace list; h/l move panes.
+navigate_workspace_up = ["k", "up"]
+navigate_workspace_down = ["j", "down"]
+navigate_pane_left = "h"
+navigate_pane_right = "l"
+navigate_pane_down = "ctrl+j"
+navigate_pane_up = "ctrl+k"
 # prefix+g starts git chords (gst, gpl, …). Unbind workspace goto.
 goto = ""
 new_workspace = "prefix+shift+n"

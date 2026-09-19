@@ -76,7 +76,7 @@ Herdr prefix mode only takes **one** key (like tmux). For sequences of two or th
 | `Space gsw` | `sw` | `git switch …` |
 | `Space ggg` | `gg` | `git …` |
 
-Detach is prefix `d` or prefix `q`. Close the focused pane with prefix `x`. Resize is prefix `r`. Esc cancels a chord. Prefix `o` jumps to the pane that raised the last notification. Prefix `w` is Herdr’s own Navigate mode.
+Detach is prefix `d` or prefix `q`. Close the focused pane with prefix `x`. Resize is prefix `r`. Esc cancels a chord. Prefix `o` jumps to the pane that raised the last notification. Prefix `w` is Herdr Navigate: `j`/`k` or up/down select a workspace, `h`/`l` move panes, Esc leaves.
 
 ## Notifications
 
