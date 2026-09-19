@@ -210,7 +210,7 @@ pick2() {
   apply "$cur" 0
   while true; do
     printf '\033[H\033[J'
-    printf 'MμHerdr themes  '
+    printf '  MμHerdr themes  '
     hex_fg "$accent"
     printf 'j/k'
     rst
@@ -223,9 +223,9 @@ pick2() {
     while [ $n -le $# ]; do
       eval "t=\${$n}"
       if [ "$n" -eq "$i" ]; then
-        printf ' > %-*s\n' "$width" "$t"
+        printf '  ❯ %-*s\n' "$width" "$t"
       else
-        printf '   %-*s\n' "$width" "$t"
+        printf '    %-*s\n' "$width" "$t"
       fi
       n=$((n + 1))
     done
