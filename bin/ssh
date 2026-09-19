@@ -36,6 +36,20 @@ hex_fg() {
 
 rst() { printf '\033[0m'; }
 
+cols=${COLUMNS:-}
+[ -n "$cols" ] || cols=$(tput cols 2>/dev/null) || cols=80
+[ "$cols" -gt 24 ] || cols=80
+maxw=$((cols - 4))
+[ "$maxw" -gt 16 ] || maxw=16
+
+clip() {
+  printf '%s' "$1" | awk -v m="$maxw" '{ s=$0; if (length(s)>m) s=substr(s,1,m-1)"…"; print s }'
+}
+
+save_tty=$(stty -g 2>/dev/null) || save_tty=
+stty -echo -icanon 2>/dev/null || true
+trap 'printf "\033[?25h"; [ -n "$save_tty" ] && stty "$save_tty"' EXIT
+
 list_rows() {
   python3 - "$SSH_DIR" <<'PY'
 import glob, os, subprocess, sys
@@ -172,11 +186,11 @@ move() {
 
 active_key=""
 status=""
-rows=()
 
 draw() {
-  local x t label mark y
-  printf '\033[?25l\033[H\033[J'
+  local x t label mark
+  printf '\033[?25l\033[H'
+  printf '\033[K'
   printf '  MμHerdr ssh  '
   hex_fg "$accent"
   printf 'j/k'
@@ -186,31 +200,33 @@ draw() {
   printf 'Esc'
   rst
   printf '  cancel\n'
+  printf '\033[K'
   if [ -n "$active_key" ]; then
-    printf '  key %s\n' "$active_key"
+    printf '  key %s\n' "$(clip "$active_key")"
   else
     printf '\n'
   fi
+  printf '\033[K'
   if [ -n "$status" ]; then
-    printf '  %s\n' "$status"
+    printf '  %s\n' "$(clip "$status")"
   else
     printf '\n'
   fi
-  y=4
   x=0
   while [ "$x" -lt "$n" ]; do
     t=${types[$x]}
+    printf '\033[K'
     if [ "$t" = s ]; then
       hex_fg "$accent"
-      printf '  %s\n' "${names[$x]}"
+      printf '  %s\n' "$(clip "${names[$x]}")"
       rst
     elif [ "$t" = x ]; then
       hex_fg "$fg"
-      printf '    %s\n' "${names[$x]}"
+      printf '    %s\n' "$(clip "${names[$x]}")"
       rst
     else
       if [ "$x" -eq "$i" ]; then
-        mark='❯'
+        mark='>'
       else
         mark=' '
       fi
@@ -223,22 +239,12 @@ draw() {
       else
         label=$(printf '%-16s  %s' "${names[$x]}" "${paths[$x]}")
       fi
-      printf '  %s %s\n' "$mark" "$label"
+      printf '  %s %s\n' "$mark" "$(clip "$label")"
     fi
-    rows[$x]=$y
-    y=$((y + 1))
     x=$((x + 1))
   done
+  printf '\033[J'
 }
-
-paint_mark() {
-  local idx=$1 ch=$2
-  local y=${rows[$idx]-}
-  [ -n "$y" ] || return 0
-  printf '\033[%s;3H%s' "$y" "$ch"
-}
-
-trap 'printf "\033[?25h"' EXIT
 
 # Re-parse keys so fingerprint+agent are both available.
 # extra = in_agent for k, identity for h
@@ -269,28 +275,18 @@ do_connect() {
   exec ssh -t "$host"
 }
 
-need_draw=1
 while true; do
-  if [ "$need_draw" = 1 ]; then
-    draw
-    need_draw=0
-  fi
+  draw
   IFS= read -r -n 1 key || key=
   if [ "$key" = j ]; then
-    old=$i
     move 1
-    paint_mark "$old" ' '
-    paint_mark "$i" '❯'
   elif [ "$key" = k ]; then
-    old=$i
     move -1
-    paint_mark "$old" ' '
-    paint_mark "$i" '❯'
   elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
     exit 0
   else
     case ${types[$i]} in
-      k) do_add; need_draw=1 ;;
+      k) do_add ;;
       h) do_connect ;;
     esac
   fi
