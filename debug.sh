@@ -61,7 +61,7 @@ cat <<'EOF'
 == what to try in Herdr ==
 
 1. Prefix, release, then ? right away — help overlay.
-   Prefix is d by default. Press it, let go, then ? with no pause.
+   Prefix is Ctrl-Alt-Space / Control-Option-Space (ctrl+alt+space). Press it, let go, then ?.
    Waiting does nothing. Option-Space inserts a NBSP on Mac and
    never enters prefix mode.
 

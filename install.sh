@@ -28,17 +28,20 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Command-mode prefix. Default is d (press d, then q/h/j… like Space in MμVim).
-DEFAULT_PREFIX=d
+# Same prefix on Mac and Linux. Ctrl-Alt survives every common terminal.
+DEFAULT_PREFIX=ctrl+alt+space
 
 prefix_label() {
-  echo "$1"
+  case "$(uname -s)" in
+    Darwin) echo "Control-Option-Space" ;;
+    *) echo "Ctrl-Alt-Space" ;;
+  esac
 }
 
 set_prefix() {
   local conf="$INSTALL_DIR/config.toml"
   local key="$DEFAULT_PREFIX"
-  local typed
+  local typed label
   [ -f "$conf" ] || return 0
   if [ -t 0 ]; then
     printf "Herdr command-mode prefix [%s]: " "$key"
@@ -50,8 +53,8 @@ set_prefix() {
     /^prefix = / { print "prefix = \"" key "\""; next }
     { print }
   ' "$conf" > "$tmp" && mv "$tmp" "$conf"
-  echo "Prefix set to $key on $(uname -s). Press $key, release, then the map letters."
-  echo "In a shell or Vim, $key starts Herdr command mode (not the program inside the pane)."
+  label=$(prefix_label)
+  echo "Prefix set to $label ($key) on $(uname -s). Press it, release, then the map letters."
 }
 
 stop_herdr() {
@@ -218,8 +221,7 @@ if command_exists herdr; then
 fi
 install_notify_os
 
-LABEL=$(grep -E '^prefix = ' "$INSTALL_DIR/config.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-LABEL=${LABEL:-$DEFAULT_PREFIX}
+LABEL=$(prefix_label)
 
 cat <<EOF
 
