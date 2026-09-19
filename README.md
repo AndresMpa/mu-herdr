@@ -78,35 +78,18 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 ## Notifications
 
-Sounds stay on. When an agent is **blocked** or **done**, MμHerdr also sends a **system** notification (macOS Notification Center / `notify-send`), plus **Slack** and **Telegram** if you turn them on.
+Sounds stay on. When an agent is **blocked** or **done**, MμHerdr also sends a **system** notification, plus **Slack** and **Telegram** if you turn them on. Title is **MμHerdr**, body is the workspace line, icon is the Herdr ram.
 
-The banner title is **MμHerdr**. The body is the workspace line. The icon is the Herdr ram (`plugin/herdr.png`). On a Mac the first alert copies `terminal-notifier.app`, puts the ram in it, and posts from that app (Notification Center ignores `-appIcon` otherwise). Allow **MμHerdr** under System Settings → Notifications. If an old stub app is leftover: `rm -rf ~/.config/herdr/plugin/MuHerdr.app`.
+`./install.sh` prepares the OS notifier:
 
-On a Mac, install a notifier and allow banners:
+- **Mac:** `brew install terminal-notifier` if needed, then brands `plugin/MuHerdr.app` with the ram. Allow **MμHerdr** in System Settings → Notifications.
+- **Linux:** installs a desktop icon (`muherdr.png`) and uses `notify-send -i`. If `notify-send` is missing: `apt install libnotify-bin` or `dnf`/`pacman` `libnotify`.
 
-```
-brew install terminal-notifier
-```
-
-System Settings → Notifications → **terminal-notifier** (and Herdr if it appears) → Allow Notifications, banners. Turn Focus off while testing.
-
-On Linux, install a notifier so `delivery = "system"` can leave the terminal:
+Test (not `herdr notification show` — that banner cannot set the ram):
 
 ```
-# Debian / Ubuntu
-sudo apt install libnotify-bin
-
-# Fedora
-sudo dnf install libnotify
-
-# Arch
-sudo pacman -S libnotify
-```
-
-Then `notify-send` is on PATH. Test with:
-
-```
-herdr notification show "MμHerdr" --body "Workspace test (grok) Need your attention" --position top-right --sound request
+HERDR_PLUGIN_EVENT_JSON='{"data":{"agent_status":"blocked","display_agent":"grok","workspace_id":"w1"}}' \
+  bash ~/.config/herdr/plugin/notify.sh
 ```
 
 Wording:
