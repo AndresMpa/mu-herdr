@@ -28,13 +28,13 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Herdr cannot bind bare alt. Token is always alt+esc (Option-Esc on Mac).
-DEFAULT_PREFIX=alt+esc
+# Herdr cannot bind bare alt. Token is alt+a (Option-A on Mac, Alt-A elsewhere).
+DEFAULT_PREFIX=alt+a
 
 prefix_label() {
   case "$(uname -s)" in
-    Darwin) echo "Option-Esc" ;;
-    *) echo "Alt-Esc" ;;
+    Darwin) echo "Option-A" ;;
+    *) echo "Alt-A" ;;
   esac
 }
 
