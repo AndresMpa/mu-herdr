@@ -73,6 +73,16 @@ load_pal() {
   done <"$file"
 }
 
+hex_fg() {
+  local h=${1#\#}
+  [ ${#h} -eq 6 ] || return 0
+  printf '\033[38;2;%d;%d;%dm' $((0x${h:0:2})) $((0x${h:2:2})) $((0x${h:4:2}))
+}
+
+rst() {
+  printf '\033[0m'
+}
+
 theme_block() {
   load_pal "$1"
   cat <<EOF
@@ -181,17 +191,18 @@ apply() {
 }
 
 pick2() {
-  local saved i n key
+  local saved i n key width t cur
   saved=$(current_name)
   set -- $(list_names)
   [ $# -gt 0 ] || die "no themes in $THEMES"
   i=1
   n=1
+  width=0
   while [ $n -le $# ]; do
     eval "t=\${$n}"
+    [ ${#t} -gt "$width" ] && width=${#t}
     if [ "$t" = "$saved" ]; then
       i=$n
-      break
     fi
     n=$((n + 1))
   done
@@ -199,14 +210,22 @@ pick2() {
   apply "$cur" 0
   while true; do
     printf '\033[H\033[J'
-    printf 'MμHerdr themes  j/k  Enter save  Esc cancel\n\n'
+    printf 'MμHerdr themes  '
+    hex_fg "$accent"
+    printf 'j/k'
+    rst
+    printf '  Enter save  '
+    hex_fg "$red"
+    printf 'Esc'
+    rst
+    printf ' cancel\n\n'
     n=1
     while [ $n -le $# ]; do
       eval "t=\${$n}"
       if [ "$n" -eq "$i" ]; then
-        printf ' > %s\n' "$t"
+        printf ' > %-*s\n' "$width" "$t"
       else
-        printf '   %s\n' "$t"
+        printf '   %-*s\n' "$width" "$t"
       fi
       n=$((n + 1))
     done
