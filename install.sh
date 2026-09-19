@@ -113,6 +113,8 @@ place_config() {
     mkdir -p "$INSTALL_DIR/plugin"
     copy_file "$SCRIPT_DIR/plugin/herdr-plugin.toml" "$INSTALL_DIR/plugin/herdr-plugin.toml"
     copy_file "$SCRIPT_DIR/plugin/notify.sh" "$INSTALL_DIR/plugin/notify.sh"
+    copy_file "$SCRIPT_DIR/plugin/herdr.png" "$INSTALL_DIR/plugin/herdr.png"
+    copy_file "$SCRIPT_DIR/plugin/herdr.svg" "$INSTALL_DIR/plugin/herdr.svg"
   fi
   if [ ! -f "$INSTALL_DIR/notify.toml" ] && [ -f "$SCRIPT_DIR/notify.example" ]; then
     copy_file "$SCRIPT_DIR/notify.example" "$INSTALL_DIR/notify.toml"
