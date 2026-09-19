@@ -196,10 +196,11 @@ move() {
 }
 
 status=""
+rows=()
 
 draw() {
-  local x t mark label
-  printf '\033[H\033[J'
+  local x t mark label y
+  printf '\033[?25l\033[H\033[J'
   printf '  MμHerdr containers  '
   hex_fg "$accent"
   printf 'j/k'
@@ -210,22 +211,21 @@ draw() {
   rst
   printf ' cancel\n'
   if [ -n "$status" ]; then
-    printf '  %s\n\n' "$status"
+    printf '  %s\n' "$status"
   else
     printf '\n'
   fi
+  y=3
   x=0
   while [ "$x" -lt "$n" ]; do
     t=${types[$x]}
     if [ "$t" = s ]; then
-      printf '\n  '
       hex_fg "$accent"
-      printf '%s\n' "${engines[$x]}"
+      printf '  %s\n' "${engines[$x]}"
       rst
     elif [ "$t" = x ]; then
-      printf '    '
       hex_fg "$fg"
-      printf '%s %s\n' "${engines[$x]}" "${names[$x]}"
+      printf '    %s %s\n' "${engines[$x]}" "${names[$x]}"
       rst
     else
       if [ "$x" -eq "$i" ]; then
@@ -241,9 +241,20 @@ draw() {
       esac
       printf '  %s %s\n' "$mark" "$label"
     fi
+    rows[$x]=$y
+    y=$((y + 1))
     x=$((x + 1))
   done
 }
+
+paint_mark() {
+  local idx=$1 ch=$2
+  local y=${rows[$idx]-}
+  [ -n "$y" ] || return 0
+  printf '\033[%s;3H%s' "$y" "$ch"
+}
+
+trap 'printf "\033[?25h"' EXIT
 
 parse_pane_id() {
   python3 -c '
@@ -301,18 +312,27 @@ do_enter() {
   exit 0
 }
 
+need_draw=1
 while true; do
-  draw
+  if [ "$need_draw" = 1 ]; then
+    draw
+    need_draw=0
+  fi
   IFS= read -r -n 1 key || key=
   if [ "$key" = j ]; then
+    old=$i
     move 1
-    status=""
+    paint_mark "$old" ' '
+    paint_mark "$i" '❯'
   elif [ "$key" = k ]; then
+    old=$i
     move -1
-    status=""
+    paint_mark "$old" ' '
+    paint_mark "$i" '❯'
   elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
     exit 0
   else
     do_enter
+    need_draw=1
   fi
 done
