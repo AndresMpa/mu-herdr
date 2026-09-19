@@ -51,7 +51,7 @@ Herdr prefix mode only takes **one** key (like tmux). For sequences of two or th
 | `Space th` | prefix `t` then `h` | Theme picker |
 | | prefix `e` | SSH keys and hosts |
 | | prefix `p` | Docker/Podman containers |
-| | prefix `w` | Navigate until Esc (`h/j/k/l` panes, `1-9` tabs) |
+| | prefix `w` | Herdr Navigate mode (until Esc) |
 | `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
@@ -81,16 +81,7 @@ Detach is prefix `d` or prefix `q`. Close the focused pane with prefix `x`. Resi
 
 ## Navigate
 
-Prefix `w` opens a **thin HUD** (not a full-screen popup, so you can see tabs while you hit `1` `2` `3` …). Herdr's built-in picker closes on `1`; this one does not. Only **Esc** or `q` exits:
-
-| Key | Action |
-| --- | --- |
-| `h` / `j` / `k` / `l` | Focus pane left / down / up / right |
-| `1`–`9` | Focus tab (stay in navigate) |
-| `Enter` | Ignored (does not leave) |
-| `Esc` / `q` | Leave navigate |
-
-Splits, themes, SSH, and containers stay on prefix.
+Prefix `w` is **Herdr Navigate** (the sidebar overlay), not a command popup. The workspace stays visible. `h`/`j`/`k`/`l` move panes. **Esc** leaves the mode. `1`–`9` are Herdr’s jumps inside that overlay. Splits, themes, SSH, and containers stay on prefix.
 
 ## Notifications
 
