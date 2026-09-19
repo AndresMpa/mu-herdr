@@ -2,6 +2,7 @@
 # Theme-style modal: pick a Docker/Podman/nerdctl container
 # and add it as a pane in the current Herdr workspace.
 set -u
+printf '\033]0;Containers\007\033]2;Containers\007'
 
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 HOME_DIR=${HOME:-}
@@ -167,7 +168,7 @@ draw() {
   local x t mark label
   printf '\033[?25l\033[H'
   printf '\033[K'
-  printf '  MμHerdr containers  '
+  printf '  Containers  '
   hex_fg "$accent"
   printf 'j/k'
   rst

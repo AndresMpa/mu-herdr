@@ -5,6 +5,12 @@
 set -u
 
 FAMILY=${1:-}
+case $FAMILY in
+  v) printf '\033]0;Panes\007\033]2;Panes\007' ;;
+  g) printf '\033]0;Git\007\033]2;Git\007' ;;
+  l) printf '\033]0;Tabs\007\033]2;Tabs\007' ;;
+  t) printf '\033]0;Themes\007\033]2;Themes\007' ;;
+esac
 HERDR_BIN=${HERDR_BIN_PATH:-herdr}
 PANE=${HERDR_ACTIVE_PANE_ID:-}
 LOG=${HERDR_CONFIG_PATH:-${HOME:-}/.config/herdr/config.toml}

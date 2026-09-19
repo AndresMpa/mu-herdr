@@ -192,6 +192,7 @@ apply() {
 
 pick2() {
   local saved i n key width t cur
+  printf '\033]0;Themes\007\033]2;Themes\007'
   saved=$(current_name)
   set -- $(list_names)
   [ $# -gt 0 ] || die "no themes in $THEMES"
@@ -210,7 +211,7 @@ pick2() {
   apply "$cur" 0
   while true; do
     printf '\033[H\033[J'
-    printf '  MμHerdr themes  '
+    printf '  Themes  '
     hex_fg "$accent"
     printf 'j/k'
     rst

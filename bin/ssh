@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # List SSH keys and ~/.ssh/config hosts. Enter loads a key or opens ssh.
 set -u
+printf '\033]0;SSH\007\033]2;SSH\007'
 
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 HOME_DIR=${HOME:-}
@@ -191,7 +192,7 @@ draw() {
   local x t label mark
   printf '\033[?25l\033[H'
   printf '\033[K'
-  printf '  MμHerdr ssh  '
+  printf '  SSH  '
   hex_fg "$accent"
   printf 'j/k'
   rst
