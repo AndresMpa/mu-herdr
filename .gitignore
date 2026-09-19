@@ -3,3 +3,6 @@ logs/
 *.log
 session.json
 .herdr/
+.plugins.lock
+themes/active
+

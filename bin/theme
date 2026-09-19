@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+# Apply MμHerdr palettes to all Herdr UI tokens (sidebar, panels, keybind help).
+# Also pushes OSC 10/11/4 so the terminal cells follow the same palette.
+set -u
+
+HERE=$(cd "$(dirname "$0")/.." && pwd)
+CONF="${HERDR_CONFIG_PATH:-${HOME:-}/.config/herdr/config.toml}"
+CONF_DIR=$(dirname "$CONF")
+THEMES="$HERE/themes"
+if [ ! -d "$THEMES" ]; then
+  THEMES="$CONF_DIR/themes"
+fi
+ACTIVE="$THEMES/active"
+HERDR_BIN=${HERDR_BIN_PATH:-herdr}
+
+BEGIN="# BEGIN MμHerdr theme"
+END="# END MμHerdr theme"
+
+die() {
+  printf '%s\n' "$*" >&2
+  exit 1
+}
+
+list_names() {
+  ls -1 "$THEMES"/*.toml 2>/dev/null | sed 's|.*/||; s|\.toml$||' | sort
+}
+
+current_name() {
+  if [ -f "$ACTIVE" ]; then
+    tr -d '[:space:]' <"$ACTIVE"
+  else
+    printf 'deep-ocean'
+  fi
+}
+
+load_pal() {
+  # Sets globals from themes/$1.toml
+  local file="$THEMES/$1.toml"
+  [ -f "$file" ] || die "unknown theme: $1"
+  base="tokyo-night"
+  bg="#0F111A"
+  bg_alt="#181A1F"
+  fg="#C5C9D6"
+  dim="#8F93A2"
+  red="#F07178"
+  orange="#F78C6C"
+  yellow="#FFCB6B"
+  green="#C3E88D"
+  cyan="#89DDFF"
+  blue="#82AAFF"
+  purple="#C792EA"
+  accent="#84FFFF"
+  while IFS='=' read -r k v || [ -n "${k:-}" ]; do
+    k=$(printf '%s' "$k" | tr -d '[:space:]')
+    v=$(printf '%s' "$v" | tr -d '[:space:]' | tr -d '"')
+    [ -z "$k" ] && continue
+    case $k in
+      \#*) continue ;;
+      base) base=$v ;;
+      bg) bg=$v ;;
+      bg_alt) bg_alt=$v ;;
+      fg) fg=$v ;;
+      dim) dim=$v ;;
+      red) red=$v ;;
+      orange) orange=$v ;;
+      yellow) yellow=$v ;;
+      green) green=$v ;;
+      cyan) cyan=$v ;;
+      blue) blue=$v ;;
+      purple) purple=$v ;;
+      accent) accent=$v ;;
+    esac
+  done <"$file"
+}
+
+hex_fg() {
+  local h=${1#\#}
+  [ ${#h} -eq 6 ] || return 0
+  printf '\033[38;2;%d;%d;%dm' $((0x${h:0:2})) $((0x${h:2:2})) $((0x${h:4:2}))
+}
+
+rst() {
+  printf '\033[0m'
+}
+
+theme_block() {
+  load_pal "$1"
+  cat <<EOF
+$BEGIN
+[theme]
+name = "$base"
+auto_switch = false
+
+[theme.custom]
+panel_bg = "$bg"
+sidebar_bg = "$bg"
+active_row_bg = "$bg_alt"
+selection_bg = "$bg_alt"
+surface0 = "$bg_alt"
+surface1 = "$bg_alt"
+surface_dim = "$dim"
+overlay0 = "$accent"
+overlay1 = "$accent"
+text = "$fg"
+subtext0 = "$fg"
+accent = "$accent"
+blue = "$blue"
+green = "$green"
+red = "$red"
+yellow = "$yellow"
+teal = "$cyan"
+mauve = "$purple"
+peach = "$orange"
+
+[ui]
+accent = "$accent"
+$END
+EOF
+}
+
+osc() {
+  { printf '\033]%s\007' "$1" >/dev/tty; } 2>/dev/null || true
+}
+
+sync_ansi() {
+  load_pal "$1"
+  osc "11;$bg"
+  osc "10;$fg"
+  osc "4;0;$bg"
+  osc "4;1;$red"
+  osc "4;2;$green"
+  osc "4;3;$yellow"
+  osc "4;4;$blue"
+  osc "4;5;$purple"
+  osc "4;6;$cyan"
+  osc "4;7;$fg"
+  osc "4;8;$bg_alt"
+  osc "4;9;$red"
+  osc "4;10;$green"
+  osc "4;11;$yellow"
+  osc "4;12;$blue"
+  osc "4;13;$purple"
+  osc "4;14;$accent"
+  osc "4;15;$fg"
+}
+
+write_config() {
+  local name=$1
+  local tmp block
+  tmp=$(mktemp)
+  block=$(mktemp)
+  theme_block "$name" >"$block"
+  python3 - "$CONF" "$tmp" "$block" "$BEGIN" "$END" <<'PY'
+import sys
+path, out, block_path, begin, end = sys.argv[1:6]
+block = open(block_path).read().rstrip() + "\n"
+text = open(path).read()
+if begin in text and end in text:
+    pre = text.split(begin, 1)[0]
+    post = text.split(end, 1)[1]
+    if post.startswith("\n"):
+        post = post[1:]
+    text = pre + block + post
+else:
+    import re
+    text2, n = re.subn(
+        r"^\[theme\][\s\S]*?(?=^\[(?!theme))",
+        block + "\n",
+        text,
+        count=1,
+        flags=re.M,
+    )
+    text = text2 if n else block + "\n" + text
+open(out, "w").write(text)
+PY
+  rm -f "$block"
+  mv "$tmp" "$CONF"
+}
+
+apply() {
+  local name=$1
+  local persist=${2:-1}
+  write_config "$name"
+  sync_ansi "$name"
+  if [ "$persist" = 1 ]; then
+    printf '%s\n' "$name" >"$ACTIVE"
+  fi
+  if command -v "$HERDR_BIN" >/dev/null 2>&1; then
+    "$HERDR_BIN" server reload-config >/dev/null 2>&1 || true
+  fi
+}
+
+pick2() {
+  local saved i n key width t cur
+  saved=$(current_name)
+  set -- $(list_names)
+  [ $# -gt 0 ] || die "no themes in $THEMES"
+  i=1
+  n=1
+  width=0
+  while [ $n -le $# ]; do
+    eval "t=\${$n}"
+    [ ${#t} -gt "$width" ] && width=${#t}
+    if [ "$t" = "$saved" ]; then
+      i=$n
+    fi
+    n=$((n + 1))
+  done
+  eval "cur=\${$i}"
+  apply "$cur" 0
+  while true; do
+    printf '\033[H\033[J'
+    printf '  MμHerdr themes  '
+    hex_fg "$accent"
+    printf 'j/k'
+    rst
+    printf '  Enter save  '
+    hex_fg "$red"
+    printf 'Esc'
+    rst
+    printf ' cancel\n\n'
+    n=1
+    while [ $n -le $# ]; do
+      eval "t=\${$n}"
+      if [ "$n" -eq "$i" ]; then
+        printf '  ❯ %-*s\n' "$width" "$t"
+      else
+        printf '    %-*s\n' "$width" "$t"
+      fi
+      n=$((n + 1))
+    done
+    IFS= read -r -n 1 key || key=
+    if [ "$key" = j ]; then
+      i=$((i + 1))
+      [ "$i" -le $# ] || i=1
+      eval "cur=\${$i}"
+      apply "$cur" 0
+    elif [ "$key" = k ]; then
+      i=$((i - 1))
+      [ "$i" -ge 1 ] || i=$#
+      eval "cur=\${$i}"
+      apply "$cur" 0
+    elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
+      apply "$saved" 1
+      exit 0
+    else
+      # Enter or any other key saves the current row.
+      eval "cur=\${$i}"
+      apply "$cur" 1
+      printf '\n%s\n' "$cur"
+      exit 0
+    fi
+  done
+}
+
+cmd=${1:-}
+case $cmd in
+  list)
+    list_names
+    ;;
+  apply)
+    [ -n "${2:-}" ] || die "usage: theme apply <name>"
+    apply "$2" 1
+    printf '%s\n' "$2"
+    ;;
+  pick)
+    pick2
+    ;;
+  current)
+    current_name
+    printf '\n'
+    ;;
+  *)
+    printf 'usage: theme list|current|apply <name>|pick\n' >&2
+    exit 2
+    ;;
+esac

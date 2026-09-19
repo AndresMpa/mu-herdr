@@ -1,8 +1,6 @@
 # MμHerdr
 
-A [Herdr](https://herdr.dev) config that follows [MμVim](https://github.com/AndresMpa/mu-vim) maps, with a **different action key**.
-
-MμVim leader is `Space`. Herdr prefix is **Command-B**. The token in `config.toml` is `cmd+b`.
+A [Herdr](https://herdr.dev) config. Prefix is **Ctrl-B**. The token in `config.toml` is `ctrl+b`. Option-Space cannot be the prefix on a Mac: it inserts a non-breaking space instead of a modifier chord.
 
 ## Install
 
@@ -13,7 +11,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Command-B` then `?` lists every binding.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Ctrl-B` then `?` lists every binding.
 
 ## Uninstall
 
@@ -24,19 +22,21 @@ cd ~/.config/herdr
 
 Removes the config, state, and `old-herdr`. Leaves the herdr binary and package manager packages.
 
-## Action key
+## Prefix
 
-| | MμVim | MμHerdr |
-| --- | --- | --- |
-| Action key | `Space` | `Command-B` then the same letters |
+| | MμHerdr |
+| --- | --- |
+| Action key | `Ctrl-B` then the map letters |
 
-Press Command-B, release, then the same letters you would type after Space in MμVim.
+Press Ctrl-B, **release**, then immediately the map letters. Do not wait. `Ctrl-B` then `?` lists every binding.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
+Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking space and cannot enter prefix mode.
+
 ## Maps
 
-| MμVim | MμHerdr | Herdr action |
+| Space | MμHerdr | Herdr action |
 | --- | --- | --- |
 | `Space q` | prefix `q` | Close pane |
 | `Space h` | prefix `h` | Close tab |
@@ -48,12 +48,13 @@ Herdr prefix mode only takes **one** key (like tmux). For sequences of two or th
 | `Space vk` | prefix `v` then `k` | Split right |
 | `Space n` | prefix `n` | Sidebar (tree) |
 | `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
-| `Ctrl-t` (new terminal) | prefix `t` | Split right (new pane) |
+| `Space th` | prefix `t` then `h` | Theme picker |
+| `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
-### Git (prefix `g`, then the same letters as MμVim)
+### Git (prefix `g`, then the same letters)
 
-| MμVim | After prefix `g` | Action |
+| Space | After prefix `g` | Action |
 | --- | --- | --- |
 | `Space gst` | `st` | Lazygit / `git status` |
 | `Space gpl` | `pl` | `git pull` |
@@ -77,7 +78,47 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 ## Theme
 
-UI colors follow Current **deep-ocean** (`#0F111A`, `#82AAFF`, `#C3E88D`, `#C792EA`).
+MμHerdr palettes, applied to **all** Herdr UI tokens (sidebar, panels, keybind help, accents) plus OSC so the terminal cells follow.
+
+Default is **deep-ocean**. Prefix `t` then `h` opens the picker. The header sits off the left edge. `j/k` (accent) moves and previews, Enter saves, `Esc` (red) restores, `❯` marks the current row. Names share one column width. Or:
+
+```
+~/.config/herdr/bin/theme list
+~/.config/herdr/bin/theme apply gruvbox
+herdr server reload-config
+```
+
+| Name |
+| --- |
+| `deep-ocean` (default) |
+| `gruvbox` |
+| `mini` |
+| `oceanic` |
+| `palenight` |
+| `darker` |
+| `nord` |
+| `dracula` |
+| `tokyonight` |
+| `catppuccin` |
+| `onedark` |
+
+## Debug
+
+If keys do nothing, run this **inside a Herdr pane**:
+
+```
+cd ~/.config/herdr
+./debug.sh
+```
+
+Then, in Herdr: Ctrl-B, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
+
+```
+herdr config check
+herdr server reload-config
+```
+
+For more Herdr log detail, restart with `HERDR_LOG=herdr=debug herdr`. Logs live next to `config.toml`.
 
 ## Reload
 
