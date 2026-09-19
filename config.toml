@@ -62,10 +62,10 @@ settings = "prefix+s"
 reload_config = "prefix+shift+r"
 open_notification_target = "prefix+o"
 
-# Space q → :q! (quit this editor). Analog: close this pane.
-# Detach has no MμVim letter — prefix+d (tmux-style) leaves panes running.
-close_pane = "prefix+q"
-detach = "prefix+d"
+# Detach leaves panes running. prefix+q is Herdr's default for that.
+# close_pane is prefix+x (not q): q must not kill the session.
+close_pane = "prefix+x"
+detach = ["prefix+q", "prefix+d"]
 close_tab = "prefix+h"
 close_workspace = "prefix+shift+d"
 

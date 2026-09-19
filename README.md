@@ -38,8 +38,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 
 | Space | MμHerdr | Herdr action |
 | --- | --- | --- |
-| `Space q` (`:q!`) | prefix `q` | Close this pane |
-| *(no MμVim letter)* | prefix `d` | Detach: leave Herdr, panes keep running |
+| `Space q` | prefix `q` | Detach (Herdr keeps running) |
 | `Space h` | prefix `h` | Close tab |
 | `Space j` / `k` | prefix `j` / `k` | Previous / next tab |
 | `Space H` | prefix `H` | Close other tabs |
@@ -77,7 +76,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space gsw` | `sw` | `git switch …` |
 | `Space ggg` | `gg` | `git …` |
 
-`Space q` in MμVim is `:q!` (quit that Vim), so prefix `q` closes the focused pane. Detach (leave the UI, do not kill agents) has no MμVim map — that is prefix `d`. A bare **Ctrl-Q** often never reaches Herdr (terminal XON). Resize mode is prefix `r`. Esc cancels a chord. Prefix `o` jumps to the pane that raised the last notification.
+Detach (leave Herdr running, do not kill panes) is prefix `q` or prefix `d`. Close the focused pane with prefix `x`. A bare **Ctrl-Q** often never reaches Herdr: terminals use it for XON flow control. Use Ctrl-B, then `q`. Resize mode is prefix `r`. Esc cancels a chord. Prefix `o` jumps to the pane that raised the last notification.
 
 ## Notifications
 
