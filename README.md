@@ -81,7 +81,7 @@ Detach is prefix `d` or prefix `q`. Close the focused pane with prefix `x`. Resi
 
 ## Navigate
 
-Prefix `w` opens a **sticky overlay** (not Herdr's built-in picker, which closes when you pick `1`–`9`). Changing pane or tab does **not** leave the mode. Only **Esc** or `q` exits:
+Prefix `w` opens a **thin HUD** (not a full-screen popup, so you can see tabs while you hit `1` `2` `3` …). Herdr's built-in picker closes on `1`; this one does not. Only **Esc** or `q` exits:
 
 | Key | Action |
 | --- | --- |

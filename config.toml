@@ -165,8 +165,8 @@ key = "prefix+w"
 type = "popup"
 command = "bash ~/.config/herdr/bin/navigate"
 description = "Navigate"
-width = "70%"
-height = "18%"
+width = 56
+height = 4
 
 # Docker / Podman / nerdctl containers
 [[keys.command]]
