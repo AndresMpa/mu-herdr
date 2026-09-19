@@ -38,9 +38,10 @@ peach = "#F78C6C"
 accent = "#84FFFF"
 # END MμHerdr theme
 
-# In-app toast; OS / Slack / Telegram come from plugin/notify.sh
+# system = macOS Notification Center / Linux notify-send (not just sound).
+# herdr = in-app toast only. terminal = ask the outer terminal.
 [ui.toast]
-delivery = "herdr"
+delivery = "system"
 delay_seconds = 1
 
 [ui.toast.herdr]

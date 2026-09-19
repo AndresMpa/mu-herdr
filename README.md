@@ -78,10 +78,15 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 ## Notifications
 
-Sounds stay on. In-app toasts are on. When an agent is **blocked** or **done**, MμHerdr also sends:
+Sounds stay on. When an agent is **blocked** or **done**, MμHerdr also sends a **system** notification (macOS Notification Center / `notify-send`), plus **Slack** and **Telegram** if you turn them on.
 
-- a **system** notification (macOS Notification Center / `notify-send`)
-- **Slack** and **Telegram**, only if you turn them on
+On a Mac, install a notifier and allow banners:
+
+```
+brew install terminal-notifier
+```
+
+System Settings → Notifications → **terminal-notifier** (and Herdr if it appears) → Allow Notifications, banners. Turn Focus off while testing.
 
 Wording:
 
