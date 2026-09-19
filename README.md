@@ -49,6 +49,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space n` | prefix `n` | Sidebar (tree) |
 | `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
 | `Space th` | prefix `t` then `h` | Theme picker |
+| | prefix `e` | SSH keys and hosts |
 | `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
@@ -75,6 +76,17 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space ggg` | `gg` | `git …` |
 
 Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. Resize mode is prefix `r`. Esc cancels a chord.
+
+## SSH
+
+Prefix `e` lists keys in `~/.ssh` and `Host` entries from `~/.ssh/config` (wildcards skipped). Same picker chrome as themes: `j`/`k`, Enter, Esc, `❯`.
+
+| Row | Enter |
+| --- | --- |
+| key | `ssh-add` that private key (Keychain on Mac). Marks it for the next connect. |
+| host | `ssh` to that Host alias. Uses the marked key if you loaded one, else the config `IdentityFile`. |
+
+Credentials stay in OpenSSH. The picker never prints private key material.
 
 ## Theme
 

@@ -133,3 +133,12 @@ command = "bash ~/.config/herdr/bin/chord t"
 description = "tt new pane · th theme"
 width = "50%"
 height = "55%"
+
+# SSH keys + hosts from ~/.ssh
+[[keys.command]]
+key = "prefix+e"
+type = "popup"
+command = "bash ~/.config/herdr/bin/ssh"
+description = "SSH keys and hosts"
+width = "70%"
+height = "70%"
