@@ -1,8 +1,6 @@
 # MμHerdr
 
-A [Herdr](https://herdr.dev) config that follows [MμVim](https://github.com/AndresMpa/mu-vim) maps, with a **different action key**.
-
-MμVim leader is `Space`. Herdr prefix is **Ctrl-B**. The token in `config.toml` is `ctrl+b`. Option-Space cannot be the prefix on a Mac: it inserts a non-breaking space instead of a modifier chord.
+A [Herdr](https://herdr.dev) config. Prefix is **Ctrl-B**. The token in `config.toml` is `ctrl+b`. Option-Space cannot be the prefix on a Mac: it inserts a non-breaking space instead of a modifier chord.
 
 ## Install
 
@@ -26,17 +24,17 @@ Removes the config, state, and `old-herdr`. Leaves the herdr binary and package 
 
 ## Action key
 
-| | MμVim | MμHerdr |
-| --- | --- | --- |
-| Action key | `Space` | `Ctrl-B` then the same letters |
+| | MμHerdr |
+| --- | --- |
+| Action key | `Ctrl-B` then the map letters |
 
-Press Ctrl-B, **release**, then immediately the same letters you would type after Space in MμVim. Do not wait.
+Press Ctrl-B, **release**, then immediately the map letters. Do not wait.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
 ## Maps
 
-| MμVim | MμHerdr | Herdr action |
+| Space | MμHerdr | Herdr action |
 | --- | --- | --- |
 | `Space q` | prefix `q` | Close pane |
 | `Space h` | prefix `h` | Close tab |
@@ -48,13 +46,13 @@ Herdr prefix mode only takes **one** key (like tmux). For sequences of two or th
 | `Space vk` | prefix `v` then `k` | Split right |
 | `Space n` | prefix `n` | Sidebar (tree) |
 | `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
-| `Space th` | prefix `t` then `h` | Theme picker (same names as MμVim) |
+| `Space th` | prefix `t` then `h` | Theme picker |
 | `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
-### Git (prefix `g`, then the same letters as MμVim)
+### Git (prefix `g`, then the same letters)
 
-| MμVim | After prefix `g` | Action |
+| Space | After prefix `g` | Action |
 | --- | --- | --- |
 | `Space gst` | `st` | Lazygit / `git status` |
 | `Space gpl` | `pl` | `git pull` |
@@ -78,7 +76,7 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 ## Theme
 
-The same palettes as MμVim Current, applied to **all** Herdr UI tokens (sidebar, panels, keybind help, accents) plus OSC so the terminal cells follow.
+MμHerdr palettes, applied to **all** Herdr UI tokens (sidebar, panels, keybind help, accents) plus OSC so the terminal cells follow.
 
 Default is **deep-ocean**. Prefix `t` then `h` opens the picker (j/k preview, Enter save, Esc restore). Or:
 
@@ -88,19 +86,19 @@ Default is **deep-ocean**. Prefix `t` then `h` opens the picker (j/k preview, En
 herdr server reload-config
 ```
 
-| Name | Same as MμVim |
-| --- | --- |
-| `deep-ocean` | default |
-| `gruvbox` | |
-| `mini` | |
-| `oceanic` | |
-| `palenight` | |
-| `darker` | |
-| `nord` | |
-| `dracula` | |
-| `tokyonight` | |
-| `catppuccin` | |
-| `onedark` | |
+| Name |
+| --- |
+| `deep-ocean` (default) |
+| `gruvbox` |
+| `mini` |
+| `oceanic` |
+| `palenight` |
+| `darker` |
+| `nord` |
+| `dracula` |
+| `tokyonight` |
+| `catppuccin` |
+| `onedark` |
 
 ## Debug
 

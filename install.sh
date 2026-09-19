@@ -113,7 +113,7 @@ Open a new terminal, then:
 
   herdr
 
-Action key is $LABEL (MμVim leader stays Space).
+Action key is $LABEL.
 $LABEL then ? lists binds.
 EOF
 
