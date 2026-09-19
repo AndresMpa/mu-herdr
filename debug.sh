@@ -61,7 +61,7 @@ cat <<'EOF'
 == what to try in Herdr ==
 
 1. Prefix, release, then ? right away — help overlay.
-   Prefix is ctrl+b. In Ghostty, Shift-Space is mapped to that. Press it, let go, then ?.
+   Prefix is Shift-Space (shift+space), not Ctrl-B. Press it, let go, then ?.
    Waiting does nothing. Option-Space inserts a NBSP on Mac and
    never enters prefix mode.
 
