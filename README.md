@@ -22,15 +22,17 @@ cd ~/.config/herdr
 
 Removes the config, state, and `old-herdr`. Leaves the herdr binary and package manager packages.
 
-## Action key
+## Prefix
 
 | | MμHerdr |
 | --- | --- |
 | Action key | `Ctrl-B` then the map letters |
 
-Press Ctrl-B, **release**, then immediately the map letters. Do not wait.
+Press Ctrl-B, **release**, then immediately the map letters. Do not wait. `Ctrl-B` then `?` lists every binding.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
+
+Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking space and cannot enter prefix mode.
 
 ## Maps
 
@@ -78,7 +80,7 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 MμHerdr palettes, applied to **all** Herdr UI tokens (sidebar, panels, keybind help, accents) plus OSC so the terminal cells follow.
 
-Default is **deep-ocean**. Prefix `t` then `h` opens the picker (j/k preview, Enter save, Esc restore). Or:
+Default is **deep-ocean**. Prefix `t` then `h` opens the picker. The header sits off the left edge. `j/k` (accent) moves and previews, Enter saves, `Esc` (red) restores, `❯` marks the current row. Names share one column width. Or:
 
 ```
 ~/.config/herdr/bin/theme list
