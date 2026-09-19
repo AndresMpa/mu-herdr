@@ -97,7 +97,14 @@ telegram = false
 slack_webhook_url = https://hooks.slack.com/services/…
 ```
 
-Or set `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_CHAT_ID`. `./install.sh` links the notify plugin. `./delete.sh` unlinks it.
+Or set `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_CHAT_ID`. `./install.sh` links the notify plugin. If `herdr plugin list` is empty:
+
+```
+herdr plugin link ~/.config/herdr/plugin --enabled
+herdr plugin list
+```
+
+`./delete.sh` unlinks it.
 
 ## Theme
 

@@ -1,6 +1,7 @@
 id = "muherdr.notify"
 name = "MμHerdr Notify"
 version = "0.1.0"
+min_herdr_version = "0.9.0"
 description = "System, Slack, and Telegram alerts when an agent needs you or finishes"
 platforms = ["linux", "macos"]
 
