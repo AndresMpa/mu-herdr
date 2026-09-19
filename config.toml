@@ -1,6 +1,6 @@
 # MμHerdr — Herdr keys. Clone to ~/.config/herdr
 #
-# Prefix is Ctrl-B (ctrl+b).
+# Prefix is d (install default). Press d, release, then the map letters.
 # Option-Space cannot enter prefix mode on a Mac: it inserts a
 # non-breaking space. cmd+b never reaches a Mac terminal.
 # Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
@@ -55,7 +55,7 @@ default_shell = "zsh"
 new_cwd = "follow"
 
 [keys]
-prefix = "ctrl+b"
+prefix = "d"
 
 help = "prefix+?"
 settings = "prefix+s"
