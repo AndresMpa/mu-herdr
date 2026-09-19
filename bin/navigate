@@ -93,23 +93,17 @@ draw() {
   printf '\033[K'
   printf '  Navigate  '
   hex_fg "$accent"
-  printf 'h/j/k/l'
+  printf 'hjkl'
   rst
-  printf ' panes  '
+  printf '  '
   hex_fg "$accent"
   printf '1-9'
   rst
-  printf ' tabs  '
+  printf '  '
   hex_fg "$red"
   printf 'Esc'
   rst
-  printf ' / q exit\n'
-  printf '\033[K'
-  if [ -n "$status" ]; then
-    printf '  %s\n' "$status"
-  else
-    printf '  (stays until Esc or q)\n'
-  fi
+  printf '\n'
   printf '\033[J'
 }
 
