@@ -1,6 +1,7 @@
 # MμHerdr — Herdr keys. Clone to ~/.config/herdr
 #
-# Prefix is d (install default). Press d, release, then the map letters.
+# Prefix is Ctrl-Alt-Space on every OS (Control-Option-Space on Mac).
+# Survives terminals without the Kitty protocol. Not Ctrl-B, not Shift-Space.
 # Option-Space cannot enter prefix mode on a Mac: it inserts a
 # non-breaking space. cmd+b never reaches a Mac terminal.
 # Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
@@ -55,7 +56,7 @@ default_shell = "zsh"
 new_cwd = "follow"
 
 [keys]
-prefix = "d"
+prefix = "ctrl+alt+space"
 
 help = "prefix+?"
 settings = "prefix+s"
@@ -65,8 +66,7 @@ open_notification_target = "prefix+o"
 # Detach leaves panes running. prefix+q is Herdr's default for that.
 # close_pane is prefix+x (not q): q must not kill the session.
 close_pane = "prefix+x"
-# prefix+d is reserved when prefix is d (double prefix sends a literal d).
-detach = "prefix+q"
+detach = ["prefix+d", "prefix+q"]
 close_tab = "prefix+h"
 close_workspace = "prefix+shift+d"
 
