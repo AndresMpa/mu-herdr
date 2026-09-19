@@ -11,7 +11,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Ctrl-B` then `?` lists every binding.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script), and sets the prefix. It does not copy sockets, logs, or `themes/active`. `Ctrl-B` then `?` lists every binding. If you already cloned into `~/.config/herdr`, it only chmods scripts and sets the prefix.
 
 ## Uninstall
 
@@ -20,7 +20,7 @@ cd ~/.config/herdr
 ./delete.sh
 ```
 
-Removes the config, state, and `old-herdr`. Leaves the herdr binary and package manager packages.
+Removes MμHerdr config, state, cache, and `old-herdr` when `~/.config/herdr` has this config. Leaves the herdr binary, package manager packages, and any Herdr config that is not MμHerdr.
 
 ## Prefix
 
@@ -74,7 +74,30 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space gsw` | `sw` | `git switch …` |
 | `Space ggg` | `gg` | `git …` |
 
-Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. Resize mode is prefix `r`. Esc cancels a chord.
+Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. Resize mode is prefix `r`. Esc cancels a chord. Prefix `o` jumps to the pane that raised the last notification.
+
+## Notifications
+
+Sounds stay on. In-app toasts are on. When an agent is **blocked** or **done**, MμHerdr also sends:
+
+- a **system** notification (macOS Notification Center / `notify-send`)
+- **Slack** and **Telegram**, only if you turn them on
+
+Wording:
+
+- `Workspace {name} ({model}) Need your attention`
+- `Workspace {name} ({model}) finished`
+
+Copy `notify.example` to `notify.toml` (gitignored) next to `config.toml`:
+
+```
+system = true
+slack = true
+telegram = false
+slack_webhook_url = https://hooks.slack.com/services/…
+```
+
+Or set `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_CHAT_ID`. `./install.sh` links the notify plugin. `./delete.sh` unlinks it.
 
 ## Theme
 
