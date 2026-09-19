@@ -164,14 +164,15 @@ Ctrl-B, e
 
 ## Containers
 
-Prefix `p` lists **machines** (`podman machine`, Docker contexts), **containers** (`docker`/`podman ps -a`), and **images**. Uses whichever of Docker or Podman is on PATH. Same picker chrome as SSH: `j`/`k`, Enter, Esc, `❯`.
+Prefix `p` opens a **theme-style modal**: `j`/`k` move, Enter **adds the selection as a pane in the current workspace**, Esc cancels. Lists every container Docker, Podman, or nerdctl can see (`ps -a`), plus Podman machines and images.
 
 | Row | Enter |
 | --- | --- |
-| machine (Podman) | start if stopped, then `podman machine ssh` |
-| container | start if stopped, then `exec -it` with bash or sh |
-| image | `run -it --rm` with bash or sh |
-| Docker context | listed only (switch with `docker context use`) |
+| container | start if stopped, split a pane, `exec -it` (bash or sh) |
+| Podman machine | start if stopped, split a pane, `machine ssh` |
+| image | split a pane, `run -it --rm` (bash or sh) |
+
+The new pane is renamed `docker:name` / `podman:name` and stays in the workspace after the modal closes.
 
 ```
 Ctrl-B, p
