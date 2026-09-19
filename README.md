@@ -80,6 +80,8 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 Sounds stay on. When an agent is **blocked** or **done**, MμHerdr also sends a **system** notification (macOS Notification Center / `notify-send`), plus **Slack** and **Telegram** if you turn them on.
 
+The banner title is **MμHerdr**. The body is the workspace line.
+
 On a Mac, install a notifier and allow banners:
 
 ```
@@ -87,6 +89,25 @@ brew install terminal-notifier
 ```
 
 System Settings → Notifications → **terminal-notifier** (and Herdr if it appears) → Allow Notifications, banners. Turn Focus off while testing.
+
+On Linux, install a notifier so `delivery = "system"` can leave the terminal:
+
+```
+# Debian / Ubuntu
+sudo apt install libnotify-bin
+
+# Fedora
+sudo dnf install libnotify
+
+# Arch
+sudo pacman -S libnotify
+```
+
+Then `notify-send` is on PATH. Test with:
+
+```
+herdr notification show "MμHerdr" --body "Workspace test (grok) Need your attention" --position top-right --sound request
+```
 
 Wording:
 
