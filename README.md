@@ -34,6 +34,24 @@ Herdr prefix mode only takes **one** key (like tmux). For sequences of two or th
 
 Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking space and cannot enter prefix mode.
 
+**iTerm2 cannot tell Shift-Space from Space.** Herdr needs a terminal that speaks the Kitty keyboard protocol (Ghostty or Kitty).
+
+Ghostty (`brew install --cask ghostty`), then `~/.config/ghostty/config`:
+
+```
+keybind = shift+space=text:\x1b[32;2u
+```
+
+Reload Ghostty (Cmd-Shift-,). Run `herdr` **inside Ghostty**, not iTerm. Shift-Space, release, `?`.
+
+Kitty (`~/.config/kitty/kitty.conf`):
+
+```
+map shift+space send_text all \x1b[32;2u
+```
+
+Snippets also live in `terminals/`.
+
 ## Maps
 
 | Space | MμHerdr | Herdr action |
