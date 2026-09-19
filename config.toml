@@ -99,7 +99,6 @@ resize_pane_down = ""
 resize_pane_up = ""
 resize_pane_right = ""
 
-# Herdr native Navigate (sidebar overlay), not a command popup.
 workspace_picker = "prefix+w"
 # prefix+g starts git chords (gst, gpl, …). Unbind workspace goto.
 goto = ""
