@@ -50,6 +50,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
 | `Space th` | prefix `t` then `h` | Theme picker |
 | | prefix `e` | SSH keys and hosts |
+| | prefix `p` | Docker/Podman machines, containers, images |
 | `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
@@ -159,6 +160,21 @@ This is OpenSSH, not `herdr machine` (that is for a remote Herdr server). Passph
 
 ```
 Ctrl-B, e
+```
+
+## Containers
+
+Prefix `p` lists **machines** (`podman machine`, Docker contexts), **containers** (`docker`/`podman ps -a`), and **images**. Uses whichever of Docker or Podman is on PATH. Same picker chrome as SSH: `j`/`k`, Enter, Esc, `❯`.
+
+| Row | Enter |
+| --- | --- |
+| machine (Podman) | start if stopped, then `podman machine ssh` |
+| container | start if stopped, then `exec -it` with bash or sh |
+| image | `run -it --rm` with bash or sh |
+| Docker context | listed only (switch with `docker context use`) |
+
+```
+Ctrl-B, p
 ```
 
 ## Theme
