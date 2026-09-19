@@ -87,7 +87,8 @@ Prefix `w` opens a **sticky overlay** (not Herdr's built-in picker, which can cl
 | --- | --- |
 | `h` / `j` / `k` / `l` | Focus pane left / down / up / right |
 | `1`–`9` | Focus tab |
-| `Esc` / `q` | Back to terminal mode |
+| `Enter` | Ignored (does not leave) |
+| `Esc` / `q` | Leave navigate |
 
 Moving does not exit the mode. Splits, themes, SSH, and containers stay on prefix (Herdr cannot put those inside native Navigate).
 

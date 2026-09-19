@@ -103,12 +103,12 @@ draw() {
   hex_fg "$red"
   printf 'Esc'
   rst
-  printf ' exit\n'
+  printf ' / q exit\n'
   printf '\033[K'
   if [ -n "$status" ]; then
     printf '  %s\n' "$status"
   else
-    printf '  (stays in this mode until Esc)\n'
+    printf '  (stays until Esc or q)\n'
   fi
   printf '\033[J'
 }
@@ -126,6 +126,7 @@ while true; do
     k) focus_dir up ;;
     l) focus_dir right ;;
     1|2|3|4|5|6|7|8|9) focus_tab_n "$key" ;;
+    $'\n'|$'\r') ;;
     $'\033'|q) exit 0 ;;
   esac
 done
