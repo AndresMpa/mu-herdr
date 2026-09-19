@@ -128,7 +128,7 @@ Prefix `w` is **Herdr Navigate** (sidebar overlay), not a command popup.
 
 ## Notifications
 
-On agent **blocked** or **done** (not `working` / `idle`): desktop banner + sound. Slack and Telegram off until configured.
+On agent **blocked** or **done** (not `working` / `idle`): one desktop banner with the ram (plugin), plus an in-app Herdr toast. `ui.toast.delivery` is `herdr` so Herdr does not post a second OS banner without the ram. Slack and Telegram off until configured.
 
 | | |
 | --- | --- |

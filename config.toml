@@ -39,10 +39,10 @@ peach = "#F78C6C"
 accent = "#84FFFF"
 # END MμHerdr theme
 
-# system = macOS Notification Center / Linux notify-send (not just sound).
-# herdr = in-app toast only. terminal = ask the outer terminal.
+# herdr = in-app toast only. OS banners come from plugin/notify.sh (ram icon).
+# system would duplicate a second banner with Herdr's default icon.
 [ui.toast]
-delivery = "system"
+delivery = "herdr"
 delay_seconds = 1
 
 [ui.toast.herdr]
