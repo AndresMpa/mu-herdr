@@ -95,7 +95,7 @@ print("sound=%s" % sh(sound))
 
 send_system() {
   if command -v "$HERDR_BIN" >/dev/null 2>&1; then
-    "$HERDR_BIN" notification show "$msg" --position top-left --sound "$sound" >/dev/null 2>&1 || true
+    "$HERDR_BIN" notification show "$msg" --position top-right --sound "$sound" >/dev/null 2>&1 || true
   fi
   case "$(uname -s)" in
     Darwin)
