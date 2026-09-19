@@ -224,8 +224,7 @@ send_system() {
         [ "$sound" = done ] && snd=Glass
         tn="$HERE/MuHerdr.app/Contents/MacOS/terminal-notifier"
         [ -x "$tn" ] || tn=$(find "$HERE/MuHerdr.app/Contents/MacOS" -type f | head -1)
-        out=$("$tn" -title "MμHerdr" -message "$msg" -sound "$snd" \
-          -appIcon "$ICON" -contentImage "$ICON" 2>&1) || tn_err=$?
+        out=$("$tn" -title "MμHerdr" -message "$msg" -sound "$snd" 2>&1) || tn_err=$?
         tn_err=${tn_err:-0}
         nlog "tn exit=$tn_err out=$out"
         if [ "$tn_err" = 0 ]; then
@@ -237,8 +236,7 @@ send_system() {
         printf 'MμHerdr notify: could not brand terminal-notifier.app (see notify.log)\n' >&2
       fi
       if [ "$sent" != 1 ] && command -v terminal-notifier >/dev/null 2>&1 && [ -f "$ICON" ]; then
-        terminal-notifier -title "MμHerdr" -message "$msg" \
-          -appIcon "$ICON" -contentImage "$ICON" >/dev/null 2>&1 && sent=1
+        terminal-notifier -title "MμHerdr" -message "$msg" >/dev/null 2>&1 && sent=1
       fi
       if [ "$sent" != 1 ]; then
         osascript -e "display notification \"$(printf '%s' "$msg" | sed 's/"/\\"/g')\" with title \"MμHerdr\"" >/dev/null 2>&1 || true
