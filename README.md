@@ -80,7 +80,7 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 Sounds stay on. When an agent is **blocked** or **done**, MμHerdr also sends a **system** notification (macOS Notification Center / `notify-send`), plus **Slack** and **Telegram** if you turn them on.
 
-The banner title is **MμHerdr**. The body is the workspace line.
+The banner title is **MμHerdr**. The body is the workspace line. The icon is the Herdr ram (`plugin/herdr.png`).
 
 On a Mac, install a notifier and allow banners:
 

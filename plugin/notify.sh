@@ -6,6 +6,9 @@ CONF="${HERDR_CONFIG_PATH:-${HOME:-}/.config/herdr/config.toml}"
 CONF_DIR=$(dirname "$CONF")
 NOTIFY_TOML="$CONF_DIR/notify.toml"
 HERDR_BIN=${HERDR_BIN_PATH:-herdr}
+HERE=$(cd "$(dirname "$0")" && pwd)
+ICON="$HERE/herdr.png"
+[ -f "$ICON" ] || ICON="$HERE/herdr.svg"
 
 system=1
 slack=0
@@ -100,20 +103,28 @@ send_system() {
   case "$(uname -s)" in
     Darwin)
       if command -v terminal-notifier >/dev/null 2>&1; then
-        terminal-notifier -title "MμHerdr" -message "$msg" >/dev/null 2>&1 || true
+        if [ -f "$ICON" ]; then
+          terminal-notifier -title "MμHerdr" -message "$msg" -appIcon "$ICON" >/dev/null 2>&1 || true
+        else
+          terminal-notifier -title "MμHerdr" -message "$msg" >/dev/null 2>&1 || true
+        fi
       else
         osascript -e "display notification \"$(printf '%s' "$msg" | sed 's/"/\\"/g')\" with title \"MμHerdr\"" >/dev/null 2>&1 || true
       fi
       ;;
     Linux)
       if command -v notify-send >/dev/null 2>&1; then
-        notify-send -a "MμHerdr" "MμHerdr" "$msg" >/dev/null 2>&1 || true
+        if [ -f "$ICON" ]; then
+          notify-send -a "MμHerdr" -i "$ICON" "MμHerdr" "$msg" >/dev/null 2>&1 || true
+        else
+          notify-send -a "MμHerdr" "MμHerdr" "$msg" >/dev/null 2>&1 || true
+        fi
       elif command -v gdbus >/dev/null 2>&1; then
         gdbus call --session \
           --dest org.freedesktop.Notifications \
           --object-path /org/freedesktop/Notifications \
           --method org.freedesktop.Notifications.Notify \
-          "MμHerdr" 0 "" "MμHerdr" "$msg" "[]" "{}" 8000 >/dev/null 2>&1 || true
+          "MμHerdr" 0 "$ICON" "MμHerdr" "$msg" "[]" "{}" 8000 >/dev/null 2>&1 || true
       fi
       ;;
   esac
@@ -145,7 +156,7 @@ msg = os.environ["MSG"]
 url = "https://api.telegram.org/bot%s/sendMessage" % token
 req = urllib.request.Request(
     url,
-    data=json.dumps({"chat_id": chat, "text": msg}).encode(),
+    data=json.dumps({"chat_id": chat, "text": "MμHerdr: " + msg}).encode(),
     headers={"Content-Type": "application/json"},
     method="POST",
 )
