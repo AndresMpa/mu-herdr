@@ -95,7 +95,7 @@ print("sound=%s" % sh(sound))
 
 send_system() {
   if command -v "$HERDR_BIN" >/dev/null 2>&1; then
-    "$HERDR_BIN" notification show "$msg" --position top-right --sound "$sound" >/dev/null 2>&1 || true
+    "$HERDR_BIN" notification show "MμHerdr" --body "$msg" --position top-right --sound "$sound" >/dev/null 2>&1 || true
   fi
   case "$(uname -s)" in
     Darwin)
@@ -105,9 +105,15 @@ send_system() {
         osascript -e "display notification \"$(printf '%s' "$msg" | sed 's/"/\\"/g')\" with title \"MμHerdr\"" >/dev/null 2>&1 || true
       fi
       ;;
-    *)
+    Linux)
       if command -v notify-send >/dev/null 2>&1; then
         notify-send -a "MμHerdr" "MμHerdr" "$msg" >/dev/null 2>&1 || true
+      elif command -v gdbus >/dev/null 2>&1; then
+        gdbus call --session \
+          --dest org.freedesktop.Notifications \
+          --object-path /org/freedesktop/Notifications \
+          --method org.freedesktop.Notifications.Notify \
+          "MμHerdr" 0 "" "MμHerdr" "$msg" "[]" "{}" 8000 >/dev/null 2>&1 || true
       fi
       ;;
   esac
@@ -121,7 +127,7 @@ url = os.environ["SLACK_URL"]
 msg = os.environ["MSG"]
 req = urllib.request.Request(
     url,
-    data=json.dumps({"text": msg}).encode(),
+    data=json.dumps({"text": "MμHerdr: " + msg}).encode(),
     headers={"Content-Type": "application/json"},
     method="POST",
 )
