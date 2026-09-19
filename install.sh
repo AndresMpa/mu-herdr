@@ -28,11 +28,11 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Herdr listens for ctrl+b. Ghostty maps Shift-Space onto that.
-DEFAULT_PREFIX=ctrl+b
+# Same prefix on Mac and Linux. Not tied to one terminal emulator.
+DEFAULT_PREFIX=shift+space
 
 prefix_label() {
-  echo "Shift-Space (Ghostty) / Ctrl-B"
+  echo "Shift-Space"
 }
 
 set_prefix() {

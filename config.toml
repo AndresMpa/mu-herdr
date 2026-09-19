@@ -1,6 +1,7 @@
 # MμHerdr — Herdr keys. Clone to ~/.config/herdr
 #
-# Herdr prefix is ctrl+b (reliable). Ghostty maps Shift-Space to that byte.
+# Prefix is Shift-Space on every OS. Needs a terminal that reports it
+# as distinct from Space (Kitty keyboard protocol). Not Ctrl-B.
 # Option-Space cannot enter prefix mode on a Mac: it inserts a
 # non-breaking space. cmd+b never reaches a Mac terminal.
 # Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
@@ -55,7 +56,7 @@ default_shell = "zsh"
 new_cwd = "follow"
 
 [keys]
-prefix = "ctrl+b"
+prefix = "shift+space"
 
 help = "prefix+?"
 settings = "prefix+s"

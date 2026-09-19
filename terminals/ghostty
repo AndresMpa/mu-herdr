@@ -1,9 +1,3 @@
-# MμHerdr — put this in ~/.config/ghostty/config
-# iTerm2 cannot send Shift-Space. Ghostty can, by turning it into Ctrl-B,
-# which is the prefix Herdr actually reads.
-#
-# brew install --cask ghostty
-# Reload Ghostty: Cmd-Shift-,
-# Run `herdr` inside Ghostty, not iTerm.
-
-keybind = shift+space=text:\x02
+# Do not remap Shift-Space here. Herdr's prefix is shift+space.
+# Extra Ghostty keybinds that send Ctrl-B (\x02) make Ctrl-B a prefix too.
+# Remove any: keybind = shift+space=...
