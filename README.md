@@ -50,6 +50,7 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
 | `Space th` | prefix `t` then `h` | Theme picker |
 | | prefix `e` | SSH keys and hosts |
+| | prefix `p` | Docker/Podman containers |
 | `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
 | `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
 
@@ -159,6 +160,14 @@ This is OpenSSH, not `herdr machine` (that is for a remote Herdr server). Passph
 
 ```
 Ctrl-B, e
+```
+
+## Containers
+
+Prefix `p` opens a **theme-style modal** of **containers only** (Docker, Podman, or nerdctl `ps -a`). `j`/`k` move, Enter **adds the container as a pane in the current workspace**, Esc cancels. Stopped containers are started first, then `exec -it` (bash or sh). The pane is renamed `docker:name` / `podman:name`.
+
+```
+Ctrl-B, p
 ```
 
 ## Theme
