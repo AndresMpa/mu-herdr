@@ -96,71 +96,77 @@ PY
 
 [ -n "${msg:-}" ] || exit 0
 
-# macOS Notification Center uses the sending app's icon. -appIcon is ignored
-# on recent macOS; a tiny .app with the ram as AppIcon.icns is what shows.
-ensure_darwin_app() {
-  APP="$HERE/MuHerdr.app"
-  ICNS="$APP/Contents/Resources/AppIcon.icns"
-  [ -f "$ICNS" ] && [ -f "$ICON" ] && return 0
+png_to_icns() {
+  local png=$1 dest=$2 set
   command -v sips >/dev/null 2>&1 || return 1
   command -v iconutil >/dev/null 2>&1 || return 1
-  [ -f "$ICON" ] || return 1
-  SET="$HERE/.icon.iconset"
-  rm -rf "$SET" "$APP"
-  mkdir -p "$SET" "$APP/Contents/MacOS" "$APP/Contents/Resources"
-  sips -z 16 16 "$ICON" --out "$SET/icon_16x16.png" >/dev/null
-  sips -z 32 32 "$ICON" --out "$SET/icon_16x16@2x.png" >/dev/null
-  sips -z 32 32 "$ICON" --out "$SET/icon_32x32.png" >/dev/null
-  sips -z 64 64 "$ICON" --out "$SET/icon_32x32@2x.png" >/dev/null
-  sips -z 128 128 "$ICON" --out "$SET/icon_128x128.png" >/dev/null
-  sips -z 256 256 "$ICON" --out "$SET/icon_128x128@2x.png" >/dev/null
-  sips -z 256 256 "$ICON" --out "$SET/icon_256x256.png" >/dev/null
-  sips -z 512 512 "$ICON" --out "$SET/icon_256x256@2x.png" >/dev/null
-  sips -z 512 512 "$ICON" --out "$SET/icon_512x512.png" >/dev/null
-  sips -z 1024 1024 "$ICON" --out "$SET/icon_512x512@2x.png" >/dev/null
-  iconutil -c icns "$SET" -o "$ICNS" >/dev/null
-  rm -rf "$SET"
-  printf '%s\n' '#!/bin/sh' 'exit 0' > "$APP/Contents/MacOS/MuHerdr"
-  chmod +x "$APP/Contents/MacOS/MuHerdr"
-  cat > "$APP/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key>
-  <string>MuHerdr</string>
-  <key>CFBundleIdentifier</key>
-  <string>com.andresmpa.muherdr.notify</string>
-  <key>CFBundleName</key>
-  <string>MμHerdr</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleIconFile</key>
-  <string>AppIcon</string>
-  <key>CFBundleVersion</key>
-  <string>1</string>
-</dict>
-</plist>
-PLIST
-  LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
-  if [ -x "$LSREG" ]; then
-    "$LSREG" -f "$APP" >/dev/null 2>&1 || true
+  [ -f "$png" ] || return 1
+  set="$HERE/.icon.iconset"
+  rm -rf "$set"
+  mkdir -p "$set"
+  sips -z 16 16 "$png" --out "$set/icon_16x16.png" >/dev/null
+  sips -z 32 32 "$png" --out "$set/icon_16x16@2x.png" >/dev/null
+  sips -z 32 32 "$png" --out "$set/icon_32x32.png" >/dev/null
+  sips -z 64 64 "$png" --out "$set/icon_32x32@2x.png" >/dev/null
+  sips -z 128 128 "$png" --out "$set/icon_128x128.png" >/dev/null
+  sips -z 256 256 "$png" --out "$set/icon_128x128@2x.png" >/dev/null
+  sips -z 256 256 "$png" --out "$set/icon_256x256.png" >/dev/null
+  sips -z 512 512 "$png" --out "$set/icon_256x256@2x.png" >/dev/null
+  sips -z 512 512 "$png" --out "$set/icon_512x512.png" >/dev/null
+  sips -z 1024 1024 "$png" --out "$set/icon_512x512@2x.png" >/dev/null
+  iconutil -c icns "$set" -o "$dest" >/dev/null
+  rm -rf "$set"
+  [ -f "$dest" ]
+}
+
+# Notification Center shows the icon of the app that posted the banner.
+# Copy Homebrew's terminal-notifier.app, swap in the ram, ad-hoc sign it.
+ensure_darwin_notifier() {
+  APP="$HERE/MuHerdr.app"
+  BIN="$APP/Contents/MacOS/terminal-notifier"
+  STAMP="$APP/.ram-icon"
+  if [ -x "$BIN" ] && [ -f "$STAMP" ]; then
+    return 0
   fi
+  command -v terminal-notifier >/dev/null 2>&1 || return 1
+  [ -f "$ICON" ] || return 1
+  src=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$(command -v terminal-notifier)")
+  src_app=${src%/Contents/MacOS/*}
+  [ -d "$src_app/Contents/MacOS" ] || return 1
+  rm -rf "$APP"
+  cp -R "$src_app" "$APP"
+  icns="$HERE/.herdr.icns"
+  png_to_icns "$ICON" "$icns" || return 1
+  find "$APP/Contents/Resources" -name '*.icns' -exec cp "$icns" {} \;
+  cp "$icns" "$APP/Contents/Resources/AppIcon.icns"
+  rm -f "$icns"
+  if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.andresmpa.muherdr.notify' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleName MμHerdr' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName MμHerdr' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
+  fi
+  codesign --force --deep -s - "$APP" >/dev/null 2>&1 || true
+  LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+  [ -x "$LSREG" ] && "$LSREG" -f "$APP" >/dev/null 2>&1 || true
+  date > "$STAMP"
+  [ -x "$BIN" ]
 }
 
 send_system() {
   local sent=0
   case "$(uname -s)" in
     Darwin)
-      ensure_darwin_app || true
-      if command -v terminal-notifier >/dev/null 2>&1; then
-        set -- -title "MμHerdr" -message "$msg"
-        [ "$sound" = done ] && set -- "$@" -sound Glass || set -- "$@" -sound default
-        [ -f "$ICON" ] && set -- "$@" -appIcon "$ICON" -contentImage "$ICON"
-        [ -d "$HERE/MuHerdr.app" ] && set -- "$@" -sender com.andresmpa.muherdr.notify
-        if terminal-notifier "$@" >/dev/null 2>&1; then
+      if ensure_darwin_notifier; then
+        snd=default
+        [ "$sound" = done ] && snd=Glass
+        if "$HERE/MuHerdr.app/Contents/MacOS/terminal-notifier" \
+          -title "MμHerdr" -message "$msg" -sound "$snd" \
+          -appIcon "$ICON" -contentImage "$ICON" >/dev/null 2>&1; then
           sent=1
         fi
+      elif command -v terminal-notifier >/dev/null 2>&1 && [ -f "$ICON" ]; then
+        terminal-notifier -title "MμHerdr" -message "$msg" \
+          -appIcon "$ICON" -contentImage "$ICON" >/dev/null 2>&1 && sent=1
       fi
       if [ "$sent" != 1 ]; then
         osascript -e "display notification \"$(printf '%s' "$msg" | sed 's/"/\\"/g')\" with title \"MμHerdr\"" >/dev/null 2>&1 || true
