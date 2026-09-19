@@ -11,7 +11,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr`, and sets the prefix. `Ctrl-B` then `?` lists every binding.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the prefix. It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. `Ctrl-B` then `?` lists every binding. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
 
 ## Uninstall
 
@@ -20,7 +20,7 @@ cd ~/.config/herdr
 ./delete.sh
 ```
 
-Removes the config, state, and `old-herdr`. Leaves the herdr binary and package manager packages.
+Removes MμHerdr config, state, cache, `old-herdr`, the notify plugin link, and the Linux desktop icon when `~/.config/herdr` has this config. Leaves the herdr binary, package manager packages, and any Herdr config that is not MμHerdr.
 
 ## Prefix
 
@@ -74,7 +74,76 @@ Command-B never reaches a Mac terminal. Option-Space inserts a non-breaking spac
 | `Space gsw` | `sw` | `git switch …` |
 | `Space ggg` | `gg` | `git …` |
 
-Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. Resize mode is prefix `r`. Esc cancels a chord.
+Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. Resize mode is prefix `r`. Esc cancels a chord. Prefix `o` jumps to the pane that raised the last notification.
+
+## Notifications
+
+When an agent is **blocked** or **done**, MμHerdr sends a desktop banner (and a sound). Slack and Telegram stay off until you add a webhook or bot. `working` and `idle` do not notify.
+
+| | |
+| --- | --- |
+| Title | `MμHerdr` |
+| Body (blocked) | `Workspace {name} ({model}) Need your attention` |
+| Body (done) | `Workspace {name} ({model}) finished` |
+| Icon | Herdr ram, left side only (`plugin/herdr.png`) |
+| Jump to pane | prefix `o` |
+
+`./install.sh` links the plugin `muherdr.notify`. Check:
+
+```
+herdr plugin list
+```
+
+If the list is empty (wrong flag order used to eat the path):
+
+```
+herdr plugin link ~/.config/herdr/plugin --enabled
+```
+
+Do **not** test with `herdr notification show`. That API cannot set the ram icon. Test the plugin:
+
+```
+HERDR_PLUGIN_EVENT_JSON='{"data":{"agent_status":"blocked","display_agent":"grok","workspace_id":"w1"}}' \
+  bash ~/.config/herdr/plugin/notify.sh
+```
+
+### Mac
+
+`./install.sh` runs `brew install terminal-notifier` if needed, copies that `.app` to `plugin/MuHerdr.app`, and puts the ram in the bundle. Notification Center uses the **sending app** icon; `-appIcon` is ignored.
+
+System Settings → Notifications → **MμHerdr** → Allow, banners. The first post may ask for permission. An old stub app without the ram: `rm -rf ~/.config/herdr/plugin/MuHerdr.app` then `./install.sh` again.
+
+### Linux
+
+`./install.sh` writes `~/.local/share/icons/hicolor/512x512/apps/muherdr.png` and `~/.local/share/applications/muherdr.desktop`. Alerts go through `notify-send -a MμHerdr -i` with the ram PNG. If nothing appears:
+
+```
+# Debian / Ubuntu
+sudo apt install libnotify-bin
+
+# Fedora
+sudo dnf install libnotify
+
+# Arch
+sudo pacman -S libnotify
+```
+
+`./delete.sh` removes those two desktop files as well.
+
+### Slack and Telegram (optional)
+
+`notify.toml` next to `config.toml` is gitignored. Copy from `notify.example`:
+
+```
+system = true
+slack = false
+telegram = false
+slack_webhook_url =
+telegram_bot_token =
+telegram_chat_id =
+```
+
+Set `slack = true` and an Incoming Webhooks URL, and/or `telegram = true` with a BotFather token and chat id. Env vars `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_CHAT_ID` also work. Chat lines are prefixed `MμHerdr:`. `./delete.sh` unlinks the plugin and does not keep the secrets file in git.
 
 ## Theme
 
