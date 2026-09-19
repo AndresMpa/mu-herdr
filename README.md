@@ -1,6 +1,6 @@
 # MμHerdr
 
-A [Herdr](https://herdr.dev) config. Prefix (command mode) is **Ctrl-Alt-Space** on Linux and **Control-Option-Space** on a Mac (`ctrl+alt+space` in `config.toml`). Same chord on both OS; not tied to one terminal.
+[Herdr](https://herdr.dev) config. After the prefix, letters match [MμVim](https://github.com/AndresMpa/mu-vim) where a Herdr analog exists.
 
 ## Install
 
@@ -11,7 +11,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (**Ctrl-Alt-Space** / **Control-Option-Space**). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
+Installs the `herdr` binary if missing (Homebrew or herdr.dev), copies this tree to `~/.config/herdr` (skips sockets, logs, `themes/active`), sets the prefix, links `muherdr.notify`, and prepares OS notifiers. Already cloned there: chmod, prefix, notifiers only.
 
 ## Uninstall
 
@@ -20,161 +20,74 @@ cd ~/.config/herdr
 ./delete.sh
 ```
 
-Removes MμHerdr config, state, cache, `old-herdr`, the notify plugin link, and the Linux desktop icon when `~/.config/herdr` has this config. Leaves the herdr binary, package manager packages, and any Herdr config that is not MμHerdr.
+Removes this config, state, cache, `old-herdr`, the notify plugin, and the Linux desktop icon. Leaves the `herdr` binary and any config that is not MμHerdr.
 
 ## Prefix
 
-| | MμHerdr |
+**Ctrl-Alt-Space** (Linux) / **Control-Option-Space** (Mac). Token: `ctrl+alt+space`. Option is Alt.
+
+Hold the modifiers and Space, **release**, then one letter. Prefix then `?` lists binds. Ctrl-B is not the prefix.
+
+Herdr prefix mode takes **one** key. Sequences of two or three letters (`vv`, `gst`, `th`) open a helper that reads the rest.
+
+Ctrl-Space, Shift-Space, Option-Space, and Command-Space are not portable (OS, Space, NBSP, Spotlight). Ctrl-Alt is the family Herdr documents as still reaching the app.
+
+## Tabs and panes
+
+| MμVim | After prefix | Action |
+| --- | --- | --- |
+| `Space q` | `q` | Detach (panes keep running). Also `d`. |
+| — | `x` | Close focused pane |
+| `Space h` | `h` | Close tab |
+| `Space H` | `H` | Close other tabs |
+| `Space j` / `k` | `j` / `k` | Previous / next tab |
+| `Space l` | `l` | List tabs |
+| `Space n` | `n` | Sidebar |
+| `Ctrl-h/j/k/l` | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
+| — | `1`–`9` | Jump to tab |
+| — | `c` | New tab |
+| — | `r` | Resize mode |
+| — | `o` | Jump to last notification pane |
+
+Bare Ctrl-Q is XON in most terminals; Herdr never sees it.
+
+## Splits
+
+Prefix `v`, then:
+
+| MμVim | Then | Action |
+| --- | --- | --- |
+| `Space vv` | `v` | Zoom this pane |
+| `Space vj` | `j` | Split down |
+| `Space vk` | `k` | Split right |
+
+Prefix `t` then `t` (or wait) splits right (Ctrl-t analog). Prefix `t` then `h` is themes.
+
+Popup chrome title: **Panes**.
+
+## Git
+
+Prefix `g`, then the same letters as MμVim. Popup title: **Git**. Esc cancels.
+
+| Then | Action |
 | --- | --- |
-| Action key | Ctrl-Alt-Space (Control-Option-Space on a Mac) then the map letters |
+| `st` | Lazygit, or `git status` |
+| `pl` / `ps` | `git pull` / `git push` |
+| `ll` / `pp` | pull / push current branch |
+| `px` | `git push -u` current branch |
+| `aa` / `ap` | `git add --all` / `git add -p` |
+| `bl` / `sh` | `git blame` / `git show` |
+| `ii` | `git init` |
+| `rv` | `git remote -v` |
+| `c` | `git commit` (wait 1s; `co` / `cb` continue) |
+| `sw` | `git switch …` |
+| `gg` | `git …` |
 
-Hold Ctrl+Alt (Control+Option on a Mac) and Space, **release**, then the same letters as Space in MμVim. Do not wait. Prefix then `?` lists every binding. Ctrl-B is **not** a prefix.
+## Themes
 
-Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
+Prefix `t` then `h`. Popup title: **Themes**. Header still says MμHerdr.
 
-**Why this chord.** Space plus one modifier is not portable: Ctrl-Space is taken by the OS, Shift-Space is sent as Space, Option-Space inserts a non-breaking space on a Mac, Command-Space is Spotlight. Herdr’s keyboard guide maps Ghostty, Kitty, WezTerm, iTerm2, Alacritty, GNOME, and KDE: **Ctrl-Alt** is the family that still reaches the app. Token is always `ctrl+alt+space` (Option is Alt).
-
-## Maps
-
-| Space | MμHerdr | Herdr action |
-| --- | --- | --- |
-| `Space q` | prefix `q` | Detach (Herdr keeps running) |
-| `Space h` | prefix `h` | Close tab |
-| `Space j` / `k` | prefix `j` / `k` | Previous / next tab |
-| `Space H` | prefix `H` | Close other tabs |
-| `Space l` | prefix `l` | List tabs |
-| `Space vv` | prefix `v` then `v` | Zoom (only this pane) |
-| `Space vj` | prefix `v` then `j` | Split down |
-| `Space vk` | prefix `v` then `k` | Split right |
-| `Space n` | prefix `n` | Sidebar (tree) |
-| `Space gst` | prefix `g` then `st` | Lazygit (`git status` if lazygit is missing) |
-| `Space th` | prefix `t` then `h` | Theme picker |
-| | prefix `e` | SSH keys and hosts |
-| | prefix `p` | Docker/Podman containers |
-| `Ctrl-t` (new terminal) | prefix `t` then `t` (or wait) | Split right (new pane) |
-| `Ctrl-h/j/k/l` (windows) | `Ctrl-h/j/k/l` | Focus pane (no prefix) |
-
-### Git (prefix `g`, then the same letters)
-
-| Space | After prefix `g` | Action |
-| --- | --- | --- |
-| `Space gst` | `st` | Lazygit / `git status` |
-| `Space gpl` | `pl` | `git pull` |
-| `Space gps` | `ps` | `git push` |
-| `Space gll` | `ll` | `git pull` current branch |
-| `Space gpp` | `pp` | `git push` current branch |
-| `Space gpx` | `px` | `git push -u` current branch |
-| `Space gaa` | `aa` | `git add --all` |
-| `Space gap` | `ap` | `git add -p` |
-| `Space gbl` | `bl` | `git blame` |
-| `Space gsh` | `sh` | `git show` |
-| `Space gii` | `ii` | `git init` |
-| `Space grv` | `rv` | `git remote -v` |
-| `Space gc` | `c` | `git commit` (wait 1s; `co` / `cb` continue) |
-| `Space gco` | `co` | `git checkout …` |
-| `Space gcb` | `cb` | `git checkout -b …` |
-| `Space gsw` | `sw` | `git switch …` |
-| `Space ggg` | `gg` | `git …` |
-
-Detach is prefix `d` or prefix `q`. Close the focused pane with prefix `x`. Resize is prefix `r`. Esc cancels a chord. Prefix `o` jumps to the pane that raised the last notification. Prefix `w` is Herdr Navigate: `j`/`k` or up/down select a workspace, `h`/`l` move panes, Esc leaves.
-
-## Notifications
-
-When an agent is **blocked** or **done**, MμHerdr sends a desktop banner (and a sound). Slack and Telegram stay off until you add a webhook or bot. `working` and `idle` do not notify.
-
-| | |
-| --- | --- |
-| Title | `MμHerdr` |
-| Body (blocked) | `Workspace {name} ({model}) Need your attention` |
-| Body (done) | `Workspace {name} ({model}) finished` |
-| Icon | Herdr ram, left side only (`plugin/herdr.png`) |
-| Jump to pane | prefix `o` |
-
-`./install.sh` links the plugin `muherdr.notify`. Check:
-
-```
-herdr plugin list
-```
-
-If the list is empty (wrong flag order used to eat the path):
-
-```
-herdr plugin link ~/.config/herdr/plugin --enabled
-```
-
-Do **not** test with `herdr notification show`. That API cannot set the ram icon. Test the plugin:
-
-```
-HERDR_PLUGIN_EVENT_JSON='{"data":{"agent_status":"blocked","display_agent":"grok","workspace_id":"w1"}}' \
-  bash ~/.config/herdr/plugin/notify.sh
-```
-
-### Mac
-
-`./install.sh` runs `brew install terminal-notifier` if needed, copies that `.app` to `plugin/MuHerdr.app`, and puts the ram in the bundle. Notification Center uses the **sending app** icon; `-appIcon` is ignored.
-
-System Settings → Notifications → **MμHerdr** → Allow, banners. The first post may ask for permission. An old stub app without the ram: `rm -rf ~/.config/herdr/plugin/MuHerdr.app` then `./install.sh` again.
-
-### Linux
-
-`./install.sh` writes `~/.local/share/icons/hicolor/512x512/apps/muherdr.png` and `~/.local/share/applications/muherdr.desktop`. Alerts go through `notify-send -a MμHerdr -i` with the ram PNG. If nothing appears:
-
-```
-# Debian / Ubuntu
-sudo apt install libnotify-bin
-
-# Fedora
-sudo dnf install libnotify
-
-# Arch
-sudo pacman -S libnotify
-```
-
-`./delete.sh` removes those two desktop files as well.
-
-### Slack and Telegram (optional)
-
-`notify.toml` next to `config.toml` is gitignored. Copy from `notify.example`:
-
-```
-system = true
-slack = false
-telegram = false
-slack_webhook_url =
-telegram_bot_token =
-telegram_chat_id =
-```
-
-Set `slack = true` and an Incoming Webhooks URL, and/or `telegram = true` with a BotFather token and chat id. Env vars `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, and `TELEGRAM_CHAT_ID` also work. Chat lines are prefixed `MμHerdr:`. `./delete.sh` unlinks the plugin and does not keep the secrets file in git.
-
-## SSH
-
-Prefix `e` opens a picker of **keys** (`~/.ssh/*.pub`) and **hosts** (`Host` lines in `~/.ssh/config`). Wildcards (`*` / `?`) are skipped. Chrome matches the theme picker: indented, `j`/`k`, Enter, Esc, `❯`.
-
-| Row | What you see | Enter |
-| --- | --- | --- |
-| key | filename, `agent` if `ssh-add -l` has it, fingerprint | `ssh-add` that private key (uses Keychain on Mac). Marks it for the next host. |
-| host | Host alias and `user@hostname` | `ssh` to that alias in the popup. Uses the marked key if you loaded one, otherwise the config `IdentityFile`. |
-
-This is OpenSSH, not `herdr machine` (that is for a remote Herdr server). Passphrases are typed in the popup. Private key material is never printed.
-
-```
-Prefix, e
-```
-
-## Containers
-
-Prefix `p` opens a **theme-style modal** of **containers only** (Docker, Podman, or nerdctl `ps -a`). `j`/`k` move, Enter **adds the container as a pane in the current workspace**, Esc cancels. Stopped containers are started first, then `exec -it` (bash or sh). The pane is renamed `docker:name` / `podman:name`.
-
-```
-Prefix, p
-```
-
-## Theme
-
-MμHerdr palettes, applied to **all** Herdr UI tokens (sidebar, panels, keybind help, accents) plus OSC so the terminal cells follow.
-
-Default is **deep-ocean**. Prefix `t` then `h` opens the picker. The header sits off the left edge. `j/k` (accent) moves and previews, Enter saves, `Esc` (red) restores, `❯` marks the current row. Names share one column width. Or:
+`j`/`k` preview, Enter save, Esc restore, `❯` current row. Palettes match MμVim Current; default **deep-ocean**.
 
 ```
 ~/.config/herdr/bin/theme list
@@ -182,40 +95,77 @@ Default is **deep-ocean**. Prefix `t` then `h` opens the picker. The header sits
 herdr server reload-config
 ```
 
-| Name |
-| --- |
-| `deep-ocean` (default) |
-| `gruvbox` |
-| `mini` |
-| `oceanic` |
-| `palenight` |
-| `darker` |
-| `nord` |
-| `dracula` |
-| `tokyonight` |
-| `catppuccin` |
-| `onedark` |
+`deep-ocean` `gruvbox` `mini` `oceanic` `palenight` `darker` `nord` `dracula` `tokyonight` `catppuccin` `onedark`
+
+## SSH
+
+Prefix `e`. Popup title: **SSH**. OpenSSH only (not `herdr machine`).
+
+| Row | Enter |
+| --- | --- |
+| key (`~/.ssh/*.pub`) | `ssh-add` (Keychain on Mac); marks it for the next host |
+| host (`Host` in `~/.ssh/config`, no `*`/`?`) | `ssh` that alias; marked key or `IdentityFile` |
+
+`j`/`k`, Esc, `❯`. Passphrases stay in the popup. Private keys are not printed.
+
+## Containers
+
+Prefix `p`. Popup title: **Containers**. Docker, Podman, or nerdctl (`ps -a` only, no images).
+
+`j`/`k` move, Enter adds the container as a pane in the current workspace (`docker:name` / `podman:name`), Esc cancels. Stopped containers are started, then `exec -it` (bash or sh). Duplicate engine/IDs are skipped.
+
+## Navigate
+
+Prefix `w` is **Herdr Navigate** (sidebar overlay), not a command popup.
+
+| Key | In Navigate |
+| --- | --- |
+| `j` / `k` or ↓ / ↑ | Select workspace |
+| `h` / `l` | Move pane |
+| Esc | Leave Navigate |
+
+`1`–`9` are Herdr’s overlay jumps. Splits, themes, SSH, and containers stay on prefix.
+
+## Notifications
+
+On agent **blocked** or **done** (not `working` / `idle`): desktop banner + sound. Slack and Telegram off until configured.
+
+| | |
+| --- | --- |
+| Title | `MμHerdr` |
+| Blocked | `Workspace {name} ({model}) Need your attention` |
+| Done | `Workspace {name} ({model}) finished` |
+| Icon | Herdr ram, left side (`plugin/herdr.png`) |
+| Jump | prefix `o` |
+
+`./install.sh` links `muherdr.notify`. If `herdr plugin list` is empty:
+
+```
+herdr plugin link ~/.config/herdr/plugin --enabled
+```
+
+Do not test with `herdr notification show` (no ram icon). Test:
+
+```
+HERDR_PLUGIN_EVENT_JSON='{"data":{"agent_status":"blocked","display_agent":"grok","workspace_id":"w1"}}' \
+  bash ~/.config/herdr/plugin/notify.sh
+```
+
+**Mac:** install.sh installs `terminal-notifier` and brands `plugin/MuHerdr.app`. System Settings → Notifications → **MμHerdr** → Allow. Broken icon: `rm -rf ~/.config/herdr/plugin/MuHerdr.app` then `./install.sh`.
+
+**Linux:** `notify-send` plus `~/.local/share/icons/hicolor/512x512/apps/muherdr.png`. If silent: `libnotify-bin` (apt) or `libnotify` (dnf/pacman). `./delete.sh` removes the desktop files.
+
+**Slack / Telegram:** gitignored `notify.toml` next to `config.toml` (copy `notify.example`). `slack = true` + webhook and/or `telegram = true` + bot token and chat id. Env: `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Lines prefixed `MμHerdr:`.
 
 ## Debug
 
-If keys do nothing, run this **inside a Herdr pane**:
+Inside a Herdr pane:
 
 ```
 cd ~/.config/herdr
 ./debug.sh
-```
-
-Then, in Herdr: Ctrl-Alt-Space (Control-Option-Space on a Mac), **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
-
-```
 herdr config check
 herdr server reload-config
 ```
 
-For more Herdr log detail, restart with `HERDR_LOG=herdr=debug herdr`. Logs live next to `config.toml`.
-
-## Reload
-
-```
-herdr server reload-config
-```
+Prefix, release, `?`. Overlay means the prefix reached Herdr. Failed `v` / `g`: `chord.log`. Extra Herdr logs: `HERDR_LOG=herdr=debug herdr`.
