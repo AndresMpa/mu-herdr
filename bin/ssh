@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # List SSH keys and ~/.ssh/config hosts. Enter loads a key or opens ssh.
 set -u
+printf '\033]0;SSH\007\033]2;SSH\007'
 
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 HOME_DIR=${HOME:-}
@@ -35,6 +36,20 @@ hex_fg() {
 }
 
 rst() { printf '\033[0m'; }
+
+cols=${COLUMNS:-}
+[ -n "$cols" ] || cols=$(tput cols 2>/dev/null) || cols=80
+[ "$cols" -gt 24 ] || cols=80
+maxw=$((cols - 4))
+[ "$maxw" -gt 16 ] || maxw=16
+
+clip() {
+  printf '%s' "$1" | awk -v m="$maxw" '{ s=$0; if (length(s)>m) s=substr(s,1,m-1)"…"; print s }'
+}
+
+save_tty=$(stty -g 2>/dev/null) || save_tty=
+stty -echo -icanon 2>/dev/null || true
+trap 'printf "\033[?25h"; [ -n "$save_tty" ] && stty "$save_tty"' EXIT
 
 list_rows() {
   python3 - "$SSH_DIR" <<'PY'
@@ -175,7 +190,8 @@ status=""
 
 draw() {
   local x t label mark
-  printf '\033[H\033[J'
+  printf '\033[?25l\033[H'
+  printf '\033[K'
   printf '  MμHerdr ssh  '
   hex_fg "$accent"
   printf 'j/k'
@@ -185,35 +201,31 @@ draw() {
   printf 'Esc'
   rst
   printf '  cancel\n'
+  printf '\033[K'
   if [ -n "$active_key" ]; then
-    printf '  key %s\n' "$active_key"
+    printf '  key %s\n' "$(clip "$active_key")"
   else
     printf '\n'
   fi
+  printf '\033[K'
   if [ -n "$status" ]; then
-    printf '  %s\n\n' "$status"
+    printf '  %s\n' "$(clip "$status")"
   else
     printf '\n'
   fi
   x=0
   while [ "$x" -lt "$n" ]; do
     t=${types[$x]}
+    printf '\033[K'
     if [ "$t" = s ]; then
-      printf '\n  '
       hex_fg "$accent"
-      printf '%s\n' "${names[$x]}"
+      printf '  %s\n' "$(clip "${names[$x]}")"
       rst
     elif [ "$t" = x ]; then
-      printf '    '
       hex_fg "$fg"
-      printf '%s\n' "${names[$x]}"
+      printf '    %s\n' "$(clip "${names[$x]}")"
       rst
     else
-      if [ "$x" -eq "$i" ]; then
-        mark='❯'
-      else
-        mark=' '
-      fi
       if [ "$t" = k ]; then
         if [ "${flags[$x]}" = 1 ]; then
           label=$(printf '%-16s  agent  %s' "${names[$x]}" "${extra[$x]}")
@@ -223,10 +235,15 @@ draw() {
       else
         label=$(printf '%-16s  %s' "${names[$x]}" "${paths[$x]}")
       fi
-      printf '  %s %s\n' "$mark" "$label"
+      if [ "$x" -eq "$i" ]; then
+        printf '  ❯ %s\n' "$(clip "$label")"
+      else
+        printf '    %s\n' "$(clip "$label")"
+      fi
     fi
     x=$((x + 1))
   done
+  printf '\033[J'
 }
 
 # Re-parse keys so fingerprint+agent are both available.
@@ -263,10 +280,8 @@ while true; do
   IFS= read -r -n 1 key || key=
   if [ "$key" = j ]; then
     move 1
-    status=""
   elif [ "$key" = k ]; then
     move -1
-    status=""
   elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
     exit 0
   else
