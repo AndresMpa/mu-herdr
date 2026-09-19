@@ -56,10 +56,11 @@ if [ -z "$json" ]; then
   exit 0
 fi
 
-eval "$(printf '%s' "$json" | python3 -c '
-import json, os, sys, subprocess
+eval "$(
+  HERDR_PLUGIN_EVENT_JSON="$json" python3 <<'PY'
+import json, os, subprocess, sys
 
-raw = sys.stdin.read()
+raw = os.environ.get("HERDR_PLUGIN_EVENT_JSON") or ""
 try:
     ev = json.loads(raw)
 except Exception:
@@ -74,8 +75,8 @@ label = ws_id or "workspace"
 bin = os.environ.get("HERDR_BIN_PATH", "herdr")
 try:
     out = subprocess.check_output([bin, "workspace", "list"], text=True)
-    tabs = json.loads(out).get("result", {}).get("workspaces") or []
-    for w in tabs:
+    workspaces = json.loads(out).get("result", {}).get("workspaces") or []
+    for w in workspaces:
         if w.get("workspace_id") == ws_id:
             label = w.get("label") or label
             break
@@ -87,12 +88,11 @@ if status == "blocked":
 else:
     msg = "Workspace %s (%s) finished" % (label, agent)
     sound = "done"
-def sh(s):
-    return "'" + str(s).replace("'", "'\"'\"'") + "'"
-print("status=%s" % sh(status))
-print("msg=%s" % sh(msg))
-print("sound=%s" % sh(sound))
-')" || exit 0
+print("status=%s" % json.dumps(status))
+print("msg=%s" % json.dumps(msg))
+print("sound=%s" % json.dumps(sound))
+PY
+)" || exit 0
 
 [ -n "${msg:-}" ] || exit 0
 
