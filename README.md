@@ -79,14 +79,18 @@ Detach (leave Herdr running) is prefix `d`, not `q`, so `q` can match Vim quit. 
 
 ## SSH
 
-Prefix `e` lists keys in `~/.ssh` and `Host` entries from `~/.ssh/config` (wildcards skipped). Same picker chrome as themes: `j`/`k`, Enter, Esc, `❯`.
+Prefix `e` opens a picker of **keys** (`~/.ssh/*.pub`) and **hosts** (`Host` lines in `~/.ssh/config`). Wildcards (`*` / `?`) are skipped. Chrome matches the theme picker: indented, `j`/`k`, Enter, Esc, `❯`.
 
-| Row | Enter |
-| --- | --- |
-| key | `ssh-add` that private key (Keychain on Mac). Marks it for the next connect. |
-| host | `ssh` to that Host alias. Uses the marked key if you loaded one, else the config `IdentityFile`. |
+| Row | What you see | Enter |
+| --- | --- | --- |
+| key | filename, `agent` if `ssh-add -l` has it, fingerprint | `ssh-add` that private key (uses Keychain on Mac). Marks it for the next host. |
+| host | Host alias and `user@hostname` | `ssh` to that alias in the popup. Uses the marked key if you loaded one, otherwise the config `IdentityFile`. |
 
-Credentials stay in OpenSSH. The picker never prints private key material.
+This is OpenSSH, not `herdr machine` (that is for a remote Herdr server). Passphrases are typed in the popup. Private key material is never printed.
+
+```
+Ctrl-B, e
+```
 
 ## Theme
 
