@@ -28,11 +28,14 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Same prefix on Mac and Linux. Not tied to one terminal emulator.
-DEFAULT_PREFIX=shift+space
+# Same prefix on Mac and Linux. Ctrl-Alt survives every common terminal.
+DEFAULT_PREFIX=ctrl+alt+space
 
 prefix_label() {
-  echo "Shift-Space"
+  case "$(uname -s)" in
+    Darwin) echo "Control-Option-Space" ;;
+    *) echo "Ctrl-Alt-Space" ;;
+  esac
 }
 
 set_prefix() {

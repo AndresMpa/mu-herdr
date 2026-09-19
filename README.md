@@ -1,6 +1,6 @@
 # MμHerdr
 
-A [Herdr](https://herdr.dev) config. Prefix (command mode) is **Shift-Space** on Mac and Linux (`shift+space` in `config.toml`). It is not Ctrl-B and is not remapped in a specific terminal.
+A [Herdr](https://herdr.dev) config. Prefix (command mode) is **Ctrl-Alt-Space** on Linux and **Control-Option-Space** on a Mac (`ctrl+alt+space` in `config.toml`). Same chord on both OS; not tied to one terminal.
 
 ## Install
 
@@ -11,7 +11,7 @@ cd ~/.config/herdr
 herdr
 ```
 
-The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (**Shift-Space**). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
+The installer puts Herdr on PATH (Homebrew or herdr.dev), copies this config to `~/.config/herdr` (chord helper, palettes, debug script, notify plugin), and sets the command-mode prefix (**Ctrl-Alt-Space** / **Control-Option-Space**). It does not copy sockets, logs, or `themes/active`. On a Mac it installs `terminal-notifier` if needed and brands `plugin/MuHerdr.app` with the Herdr ram. On Linux it installs a desktop icon for `notify-send`. It links `muherdr.notify`. If you already cloned into `~/.config/herdr`, it chmods scripts, sets the prefix, and prepares notifiers.
 
 ## Uninstall
 
@@ -26,15 +26,13 @@ Removes MμHerdr config, state, cache, `old-herdr`, the notify plugin link, and 
 
 | | MμHerdr |
 | --- | --- |
-| Action key | Shift-Space then the map letters |
+| Action key | Ctrl-Alt-Space (Control-Option-Space on a Mac) then the map letters |
 
-Press Shift-Space, **release**, then the same letters as Space in MμVim. Do not wait. Prefix then `?` lists every binding. Ctrl-B is **not** a prefix.
+Hold Ctrl+Alt (Control+Option on a Mac) and Space, **release**, then the same letters as Space in MμVim. Do not wait. Prefix then `?` lists every binding. Ctrl-B is **not** a prefix.
 
 Herdr prefix mode only takes **one** key (like tmux). For sequences of two or three letters (`vv`, `vj`, `vk`, `gst`, …) that first letter opens a small helper which reads the rest. The letters stay the same.
 
-Shift-Space must arrive as a different event from Space. Herdr asks for the Kitty keyboard protocol; any terminal that implements it can do that (Kitty, Ghostty, WezTerm, …) with **no extra keybind**. Do not map Shift-Space to Ctrl-B in the terminal.
-
-If Shift-Space does nothing, that emulator is sending Space (iTerm2 and several GTK terminals). That is a terminal limit, not an MμHerdr or OS-specific setting. See `terminals/README.md`.
+**Why this chord.** Space plus one modifier is not portable: Ctrl-Space is taken by the OS, Shift-Space is sent as Space, Option-Space inserts a non-breaking space on a Mac, Command-Space is Spotlight. Herdr’s keyboard guide maps Ghostty, Kitty, WezTerm, iTerm2, Alacritty, GNOME, and KDE: **Ctrl-Alt** is the family that still reaches the app. Token is always `ctrl+alt+space` (Option is Alt).
 
 ## Maps
 
@@ -207,7 +205,7 @@ cd ~/.config/herdr
 ./debug.sh
 ```
 
-Then, in Herdr: Shift-Space, **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
+Then, in Herdr: Ctrl-Alt-Space (Control-Option-Space on a Mac), **release**, then `?` right away. Help overlay means the prefix reached Herdr. Sidebar (`n`) needs no helper; `vv` / `gst` need `bin/chord`. After a failed `v` or `g`, read `~/.config/herdr/chord.log`.
 
 ```
 herdr config check

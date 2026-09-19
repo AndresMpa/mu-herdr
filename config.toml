@@ -1,7 +1,7 @@
 # MμHerdr — Herdr keys. Clone to ~/.config/herdr
 #
-# Prefix is Shift-Space on every OS. Needs a terminal that reports it
-# as distinct from Space (Kitty keyboard protocol). Not Ctrl-B.
+# Prefix is Ctrl-Alt-Space on every OS (Control-Option-Space on Mac).
+# Survives terminals without the Kitty protocol. Not Ctrl-B, not Shift-Space.
 # Option-Space cannot enter prefix mode on a Mac: it inserts a
 # non-breaking space. cmd+b never reaches a Mac terminal.
 # Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
@@ -56,7 +56,7 @@ default_shell = "zsh"
 new_cwd = "follow"
 
 [keys]
-prefix = "shift+space"
+prefix = "ctrl+alt+space"
 
 help = "prefix+?"
 settings = "prefix+s"
