@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Install MμHerdr the same way Mini does, in shell:
-# Homebrew or herdr.dev. Never delete the directory we are running from.
+# Install MμHerdr into ~/.config/herdr.
+# Homebrew or herdr.dev for the binary. Never delete the directory we are running from.
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -28,7 +28,6 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Herdr's key token is ctrl+b. Option-Space inserts a NBSP on Mac.
 prefix_label() {
   echo "Ctrl-B"
 }
@@ -47,6 +46,35 @@ set_prefix() {
   echo "Prefix set to $label ($key) on $(uname -s)."
 }
 
+stop_herdr() {
+  # Only stop a server whose socket lives in this install dir.
+  if command_exists herdr && { [ -S "$INSTALL_DIR/herdr.sock" ] || [ -S "$INSTALL_DIR/herdr-client.sock" ]; }; then
+    herdr server stop >/dev/null 2>&1 || true
+  fi
+}
+
+chmod_scripts() {
+  for f in \
+    "$INSTALL_DIR/bin/chord" \
+    "$INSTALL_DIR/bin/theme" \
+    "$INSTALL_DIR/debug.sh" \
+    "$INSTALL_DIR/install.sh" \
+    "$INSTALL_DIR/delete.sh" \
+    "$INSTALL_DIR/plugin/notify.sh"
+  do
+    if [ -f "$f" ]; then
+      chmod +x "$f"
+    fi
+  done
+}
+
+copy_file() {
+  local src=$1 dest=$2
+  [ -e "$src" ] || return 0
+  mkdir -p "$(dirname "$dest")"
+  cp -R "$src" "$dest"
+}
+
 place_config() {
   if [ "$SCRIPT_DIR" = "$INSTALL_DIR" ]; then
     echo "Already running from $INSTALL_DIR — nothing to copy."
@@ -55,10 +83,11 @@ place_config() {
 
   mkdir -p "$(dirname "$INSTALL_DIR")"
 
-  if [ -e "$INSTALL_DIR" ]; then
+  if [ -e "$INSTALL_DIR" ] || [ -L "$INSTALL_DIR" ]; then
     echo "A config already exists at $INSTALL_DIR."
     printf "Keep it as a backup at %s? [y/N]: " "$BACKUP_DIR"
     read -r keep
+    stop_herdr
     if [ "${keep:-n}" = "y" ] || [ "${keep:-n}" = "Y" ]; then
       rm -rf "$BACKUP_DIR"
       mv "$INSTALL_DIR" "$BACKUP_DIR"
@@ -67,38 +96,77 @@ place_config() {
     fi
   fi
 
-  mkdir -p "$INSTALL_DIR"
-  cp -R "$SCRIPT_DIR"/. "$INSTALL_DIR"/
+  mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/themes"
+  copy_file "$SCRIPT_DIR/config.toml" "$INSTALL_DIR/config.toml"
+  copy_file "$SCRIPT_DIR/bin/chord" "$INSTALL_DIR/bin/chord"
+  copy_file "$SCRIPT_DIR/bin/theme" "$INSTALL_DIR/bin/theme"
+  if [ -d "$SCRIPT_DIR/themes" ]; then
+    for pal in "$SCRIPT_DIR"/themes/*.toml; do
+      [ -f "$pal" ] || continue
+      copy_file "$pal" "$INSTALL_DIR/themes/$(basename "$pal")"
+    done
+  fi
+  for f in install.sh delete.sh debug.sh README.md .gitignore notify.example; do
+    copy_file "$SCRIPT_DIR/$f" "$INSTALL_DIR/$f"
+  done
+  if [ -d "$SCRIPT_DIR/plugin" ]; then
+    mkdir -p "$INSTALL_DIR/plugin"
+    copy_file "$SCRIPT_DIR/plugin/herdr-plugin.toml" "$INSTALL_DIR/plugin/herdr-plugin.toml"
+    copy_file "$SCRIPT_DIR/plugin/notify.sh" "$INSTALL_DIR/plugin/notify.sh"
+  fi
+  if [ ! -f "$INSTALL_DIR/notify.toml" ] && [ -f "$SCRIPT_DIR/notify.example" ]; then
+    copy_file "$SCRIPT_DIR/notify.example" "$INSTALL_DIR/notify.toml"
+  fi
   echo "Copied MμHerdr to $INSTALL_DIR"
 }
 
-chmod_scripts() {
-  for f in "$INSTALL_DIR/bin/chord" "$INSTALL_DIR/bin/theme" "$INSTALL_DIR/debug.sh"; do
-    if [ -f "$f" ]; then
-      chmod +x "$f"
+verify_install() {
+  local missing=0
+  for f in \
+    "$INSTALL_DIR/config.toml" \
+    "$INSTALL_DIR/bin/chord" \
+    "$INSTALL_DIR/bin/theme" \
+    "$INSTALL_DIR/themes/deep-ocean.toml" \
+    "$INSTALL_DIR/delete.sh" \
+    "$INSTALL_DIR/plugin/notify.sh" \
+    "$INSTALL_DIR/plugin/herdr-plugin.toml"
+  do
+    if [ ! -f "$f" ]; then
+      echo "Missing $f"
+      missing=1
     fi
   done
+  [ "$missing" = 0 ]
 }
-
-printf "Use a custom config directory? (default %s) [y/N]: " "$INSTALL_DIR"
-read -r custom
-if [ "${custom:-n}" = "y" ] || [ "${custom:-n}" = "Y" ]; then
-  printf "Enter the path: "
-  read -r custom_path
-  if [ -n "${custom_path:-}" ]; then
-    case "$custom_path" in
-      ~*) INSTALL_DIR="${HOME_DIR}${custom_path#\~}" ;;
-      *) INSTALL_DIR=$custom_path ;;
-    esac
-  fi
-fi
 
 install_herdr || echo "Could not install herdr. Install it from https://herdr.dev then re-run."
 place_config
+if [ ! -f "$INSTALL_DIR/notify.toml" ]; then
+  if [ -f "$INSTALL_DIR/notify.example" ]; then
+    cp "$INSTALL_DIR/notify.example" "$INSTALL_DIR/notify.toml"
+  elif [ -f "$SCRIPT_DIR/notify.example" ]; then
+    cp "$SCRIPT_DIR/notify.example" "$INSTALL_DIR/notify.toml"
+  fi
+fi
 chmod_scripts
 set_prefix
 
+if ! verify_install; then
+  echo "Install did not land the required MμHerdr files."
+  exit 1
+fi
+
+link_notify_plugin() {
+  command_exists herdr || return 0
+  [ -f "$INSTALL_DIR/plugin/herdr-plugin.toml" ] || return 0
+  herdr plugin unlink muherdr.notify >/dev/null 2>&1 || true
+  herdr plugin link --enabled "$INSTALL_DIR/plugin" >/dev/null 2>&1 \
+    || echo "Could not link the notify plugin. Start herdr and re-run ./install.sh."
+}
+
 if command_exists herdr; then
+  HERDR_CONFIG_PATH="$INSTALL_DIR/config.toml" herdr config check || true
+  link_notify_plugin
   herdr server reload-config >/dev/null 2>&1 || true
 fi
 
