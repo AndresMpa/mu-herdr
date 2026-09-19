@@ -9,6 +9,11 @@ HERDR_BIN=${HERDR_BIN_PATH:-herdr}
 HERE=$(cd "$(dirname "$0")" && pwd)
 ICON="$HERE/herdr.png"
 [ -f "$ICON" ] || ICON="$HERE/herdr.svg"
+NOTIFY_LOG="$CONF_DIR/notify.log"
+
+nlog() {
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$NOTIFY_LOG" 2>/dev/null || true
+}
 
 system=1
 slack=0
@@ -119,6 +124,49 @@ png_to_icns() {
   [ -f "$dest" ]
 }
 
+find_tn_app() {
+  local real p
+  if command -v terminal-notifier >/dev/null 2>&1; then
+    real=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$(command -v terminal-notifier)" 2>/dev/null) || real=
+    case "$real" in
+      */Contents/MacOS/*)
+        p=${real%/Contents/MacOS/*}
+        if [ -d "$p/Contents" ]; then
+          printf '%s\n' "$p"
+          return 0
+        fi
+        ;;
+    esac
+  fi
+  if command -v brew >/dev/null 2>&1; then
+    p=$(brew --prefix terminal-notifier 2>/dev/null) || p=
+    if [ -n "$p" ]; then
+      if [ -d "$p/terminal-notifier.app" ]; then
+        printf '%s\n' "$p/terminal-notifier.app"
+        return 0
+      fi
+      for p in "$p"/terminal-notifier.app "$p"/*/terminal-notifier.app; do
+        if [ -d "$p" ]; then
+          printf '%s\n' "$p"
+          return 0
+        fi
+      done
+    fi
+  fi
+  for p in \
+    /opt/homebrew/opt/terminal-notifier/terminal-notifier.app \
+    /usr/local/opt/terminal-notifier/terminal-notifier.app \
+    /opt/homebrew/Cellar/terminal-notifier/*/terminal-notifier.app \
+    /usr/local/Cellar/terminal-notifier/*/terminal-notifier.app
+  do
+    if [ -d "$p" ]; then
+      printf '%s\n' "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Notification Center shows the icon of the app that posted the banner.
 # Copy Homebrew's terminal-notifier.app, swap in the ram, ad-hoc sign it.
 ensure_darwin_notifier() {
@@ -126,30 +174,45 @@ ensure_darwin_notifier() {
   BIN="$APP/Contents/MacOS/terminal-notifier"
   STAMP="$APP/.ram-icon"
   if [ -x "$BIN" ] && [ -f "$STAMP" ]; then
+    nlog "reuse $APP"
     return 0
   fi
-  command -v terminal-notifier >/dev/null 2>&1 || return 1
-  [ -f "$ICON" ] || return 1
-  src=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$(command -v terminal-notifier)")
-  src_app=${src%/Contents/MacOS/*}
-  [ -d "$src_app/Contents/MacOS" ] || return 1
+  [ -f "$ICON" ] || { nlog "missing icon $ICON"; return 1; }
+  src_app=$(find_tn_app) || { nlog "terminal-notifier.app not found"; return 1; }
+  nlog "copy $src_app -> $APP"
   rm -rf "$APP"
-  cp -R "$src_app" "$APP"
+  cp -R "$src_app" "$APP" || { nlog "copy failed"; return 1; }
   icns="$HERE/.herdr.icns"
-  png_to_icns "$ICON" "$icns" || return 1
+  if ! png_to_icns "$ICON" "$icns"; then
+    nlog "png_to_icns failed"
+    return 1
+  fi
   find "$APP/Contents/Resources" -name '*.icns' -exec cp "$icns" {} \;
   cp "$icns" "$APP/Contents/Resources/AppIcon.icns"
+  cp "$icns" "$APP/Contents/Resources/Terminal.icns"
   rm -f "$icns"
-  if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
-    /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.andresmpa.muherdr.notify' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
+  if [ -x /usr/libexec/PlistBuddy ]; then
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.andresmpa.muherdr.notify' "$APP/Contents/Info.plist" >/dev/null 2>&1 || \
+      /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.andresmpa.muherdr.notify' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
     /usr/libexec/PlistBuddy -c 'Set :CFBundleName MμHerdr' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
     /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName MμHerdr' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleIconFile AppIcon' "$APP/Contents/Info.plist" >/dev/null 2>&1 || \
+      /usr/libexec/PlistBuddy -c 'Add :CFBundleIconFile string AppIcon' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
   fi
-  codesign --force --deep -s - "$APP" >/dev/null 2>&1 || true
+  if [ ! -x "$BIN" ]; then
+    BIN=$(find "$APP/Contents/MacOS" -type f | head -1)
+  fi
+  xattr -cr "$APP" >/dev/null 2>&1 || true
+  codesign --force --deep -s - "$APP" >/dev/null 2>&1 || nlog "codesign failed"
   LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
   [ -x "$LSREG" ] && "$LSREG" -f "$APP" >/dev/null 2>&1 || true
+  if [ ! -x "$BIN" ]; then
+    nlog "no executable in $APP"
+    return 1
+  fi
   date > "$STAMP"
-  [ -x "$BIN" ]
+  nlog "ready bin=$BIN"
+  return 0
 }
 
 send_system() {
@@ -159,18 +222,28 @@ send_system() {
       if ensure_darwin_notifier; then
         snd=default
         [ "$sound" = done ] && snd=Glass
-        if "$HERE/MuHerdr.app/Contents/MacOS/terminal-notifier" \
-          -title "MμHerdr" -message "$msg" -sound "$snd" \
-          -appIcon "$ICON" -contentImage "$ICON" >/dev/null 2>&1; then
+        tn="$HERE/MuHerdr.app/Contents/MacOS/terminal-notifier"
+        [ -x "$tn" ] || tn=$(find "$HERE/MuHerdr.app/Contents/MacOS" -type f | head -1)
+        out=$("$tn" -title "MμHerdr" -message "$msg" -sound "$snd" \
+          -appIcon "$ICON" -contentImage "$ICON" 2>&1) || tn_err=$?
+        tn_err=${tn_err:-0}
+        nlog "tn exit=$tn_err out=$out"
+        if [ "$tn_err" = 0 ]; then
           sent=1
+          printf 'MμHerdr notify: posted from MuHerdr.app (ram icon)\n' >&2
         fi
-      elif command -v terminal-notifier >/dev/null 2>&1 && [ -f "$ICON" ]; then
+      else
+        nlog "ensure_darwin_notifier failed"
+        printf 'MμHerdr notify: could not brand terminal-notifier.app (see notify.log)\n' >&2
+      fi
+      if [ "$sent" != 1 ] && command -v terminal-notifier >/dev/null 2>&1 && [ -f "$ICON" ]; then
         terminal-notifier -title "MμHerdr" -message "$msg" \
           -appIcon "$ICON" -contentImage "$ICON" >/dev/null 2>&1 && sent=1
       fi
       if [ "$sent" != 1 ]; then
         osascript -e "display notification \"$(printf '%s' "$msg" | sed 's/"/\\"/g')\" with title \"MμHerdr\"" >/dev/null 2>&1 || true
         sent=1
+        printf 'MμHerdr notify: fallback osascript (no ram icon)\n' >&2
       fi
       ;;
     Linux)
