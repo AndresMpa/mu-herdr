@@ -28,14 +28,11 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Herdr cannot bind bare alt. Token is alt+a (Option-A on Mac, Alt-A elsewhere).
-DEFAULT_PREFIX=alt+a
+# Command-mode prefix. Token is shift+space.
+DEFAULT_PREFIX=shift+space
 
 prefix_label() {
-  case "$(uname -s)" in
-    Darwin) echo "Option-A" ;;
-    *) echo "Alt-A" ;;
-  esac
+  echo "Shift-Space"
 }
 
 set_prefix() {

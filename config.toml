@@ -1,6 +1,6 @@
 # MμHerdr — Herdr keys. Clone to ~/.config/herdr
 #
-# Prefix is alt+a (Option-A on Mac). Bare alt and alt+esc are not usable.
+# Prefix is Shift-Space. Some terminals send this as Space.
 # Option-Space cannot enter prefix mode on a Mac: it inserts a
 # non-breaking space. cmd+b never reaches a Mac terminal.
 # Herdr prefix mode takes one key. prefix+v and prefix+g open bin/chord
@@ -55,7 +55,7 @@ default_shell = "zsh"
 new_cwd = "follow"
 
 [keys]
-prefix = "alt+a"
+prefix = "shift+space"
 
 help = "prefix+?"
 settings = "prefix+s"
