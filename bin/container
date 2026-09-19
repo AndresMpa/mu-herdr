@@ -195,13 +195,12 @@ draw() {
       printf '    %s\n' "$(clip "${engines[$x]} ${names[$x]}")"
       rst
     else
-      if [ "$x" -eq "$i" ]; then
-        mark='>'
-      else
-        mark=' '
-      fi
       label=$(printf '%-8s  %-16s  %-10s  %s' "${engines[$x]}" "${names[$x]}" "${states[$x]}" "${extra[$x]}")
-      printf '  %s %s\n' "$mark" "$(clip "$label")"
+      if [ "$x" -eq "$i" ]; then
+        printf '  ❯ %s\n' "$(clip "$label")"
+      else
+        printf '    %s\n' "$(clip "$label")"
+      fi
     fi
     x=$((x + 1))
   done
