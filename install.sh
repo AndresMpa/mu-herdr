@@ -28,22 +28,30 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
+# Command-mode prefix. Default is d (press d, then q/h/j… like Space in MμVim).
+DEFAULT_PREFIX=d
+
 prefix_label() {
-  echo "Ctrl-B"
+  echo "$1"
 }
 
 set_prefix() {
   local conf="$INSTALL_DIR/config.toml"
-  local key="ctrl+b"
-  local label
-  label=$(prefix_label)
+  local key="$DEFAULT_PREFIX"
+  local typed
   [ -f "$conf" ] || return 0
+  if [ -t 0 ]; then
+    printf "Herdr command-mode prefix [%s]: " "$key"
+    read -r typed || true
+    [ -n "${typed:-}" ] && key=$typed
+  fi
   tmp=$(mktemp)
   awk -v key="$key" '
     /^prefix = / { print "prefix = \"" key "\""; next }
     { print }
   ' "$conf" > "$tmp" && mv "$tmp" "$conf"
-  echo "Prefix set to $label ($key) on $(uname -s)."
+  echo "Prefix set to $key on $(uname -s). Press $key, release, then the map letters."
+  echo "In a shell or Vim, $key starts Herdr command mode (not the program inside the pane)."
 }
 
 stop_herdr() {
@@ -210,7 +218,8 @@ if command_exists herdr; then
 fi
 install_notify_os
 
-LABEL=$(prefix_label)
+LABEL=$(grep -E '^prefix = ' "$INSTALL_DIR/config.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+LABEL=${LABEL:-$DEFAULT_PREFIX}
 
 cat <<EOF
 
