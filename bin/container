@@ -36,6 +36,20 @@ hex_fg() {
 
 rst() { printf '\033[0m'; }
 
+cols=${COLUMNS:-}
+[ -n "$cols" ] || cols=$(tput cols 2>/dev/null) || cols=80
+[ "$cols" -gt 24 ] || cols=80
+maxw=$((cols - 4))
+[ "$maxw" -gt 16 ] || maxw=16
+
+clip() {
+  printf '%s' "$1" | awk -v m="$maxw" '{ s=$0; if (length(s)>m) s=substr(s,1,m-1)"…"; print s }'
+}
+
+save_tty=$(stty -g 2>/dev/null) || save_tty=
+stty -echo -icanon 2>/dev/null || true
+trap 'printf "\033[?25h"; [ -n "$save_tty" ] && stty "$save_tty"' EXIT
+
 list_rows() {
   python3 <<'PY'
 import os, shutil, subprocess, sys
@@ -196,11 +210,11 @@ move() {
 }
 
 status=""
-rows=()
 
 draw() {
-  local x t mark label y
-  printf '\033[?25l\033[H\033[J'
+  local x t mark label
+  printf '\033[?25l\033[H'
+  printf '\033[K'
   printf '  MμHerdr containers  '
   hex_fg "$accent"
   printf 'j/k'
@@ -210,26 +224,27 @@ draw() {
   printf 'Esc'
   rst
   printf ' cancel\n'
+  printf '\033[K'
   if [ -n "$status" ]; then
-    printf '  %s\n' "$status"
+    printf '  %s\n' "$(clip "$status")"
   else
     printf '\n'
   fi
-  y=3
   x=0
   while [ "$x" -lt "$n" ]; do
     t=${types[$x]}
+    printf '\033[K'
     if [ "$t" = s ]; then
       hex_fg "$accent"
-      printf '  %s\n' "${engines[$x]}"
+      printf '  %s\n' "$(clip "${engines[$x]}")"
       rst
     elif [ "$t" = x ]; then
       hex_fg "$fg"
-      printf '    %s %s\n' "${engines[$x]}" "${names[$x]}"
+      printf '    %s\n' "$(clip "${engines[$x]} ${names[$x]}")"
       rst
     else
       if [ "$x" -eq "$i" ]; then
-        mark='❯'
+        mark='>'
       else
         mark=' '
       fi
@@ -239,22 +254,12 @@ draw() {
         i) label=$(printf '%-8s  %-28s  %s' "${engines[$x]}" "${names[$x]}" "${states[$x]}") ;;
         *) label=${names[$x]} ;;
       esac
-      printf '  %s %s\n' "$mark" "$label"
+      printf '  %s %s\n' "$mark" "$(clip "$label")"
     fi
-    rows[$x]=$y
-    y=$((y + 1))
     x=$((x + 1))
   done
+  printf '\033[J'
 }
-
-paint_mark() {
-  local idx=$1 ch=$2
-  local y=${rows[$idx]-}
-  [ -n "$y" ] || return 0
-  printf '\033[%s;3H%s' "$y" "$ch"
-}
-
-trap 'printf "\033[?25h"' EXIT
 
 parse_pane_id() {
   python3 -c '
@@ -312,27 +317,16 @@ do_enter() {
   exit 0
 }
 
-need_draw=1
 while true; do
-  if [ "$need_draw" = 1 ]; then
-    draw
-    need_draw=0
-  fi
+  draw
   IFS= read -r -n 1 key || key=
   if [ "$key" = j ]; then
-    old=$i
     move 1
-    paint_mark "$old" ' '
-    paint_mark "$i" '❯'
   elif [ "$key" = k ]; then
-    old=$i
     move -1
-    paint_mark "$old" ' '
-    paint_mark "$i" '❯'
   elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
     exit 0
   else
     do_enter
-    need_draw=1
   fi
 done
