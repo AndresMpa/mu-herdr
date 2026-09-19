@@ -44,7 +44,7 @@ delivery = "herdr"
 delay_seconds = 1
 
 [ui.toast.herdr]
-position = "bottom-right"
+position = "top-left"
 
 [ui.sound]
 enabled = true
