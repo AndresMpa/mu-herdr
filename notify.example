@@ -1,0 +1,13 @@
+# Copy to notify.toml next to config.toml (gitignored).
+# Slack and Telegram stay off until you set a URL or token.
+
+system = true
+slack = false
+telegram = false
+
+# Incoming webhook URL (Slack app → Incoming Webhooks)
+slack_webhook_url =
+
+# Bot token from @BotFather, and the chat id to post in
+telegram_bot_token =
+telegram_chat_id =

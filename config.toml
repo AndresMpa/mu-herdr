@@ -38,6 +38,18 @@ peach = "#F78C6C"
 accent = "#84FFFF"
 # END MμHerdr theme
 
+# system = macOS Notification Center / Linux notify-send (not just sound).
+# herdr = in-app toast only. terminal = ask the outer terminal.
+[ui.toast]
+delivery = "system"
+delay_seconds = 1
+
+[ui.toast.herdr]
+position = "top-right"
+
+[ui.sound]
+enabled = true
+
 [terminal]
 default_shell = "zsh"
 new_cwd = "follow"
@@ -48,6 +60,7 @@ prefix = "ctrl+b"
 help = "prefix+?"
 settings = "prefix+s"
 reload_config = "prefix+shift+r"
+open_notification_target = "prefix+o"
 
 # Space q → close pane. Detach is prefix+d so q can match Vim.
 close_pane = "prefix+q"
