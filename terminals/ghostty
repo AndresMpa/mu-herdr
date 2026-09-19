@@ -1,4 +1,9 @@
-# MμHerdr: send Shift-Space as a distinct chord (Kitty keyboard protocol).
-# iTerm2 cannot do this. Put this in ~/.config/ghostty/config and run herdr in Ghostty.
+# MμHerdr — put this in ~/.config/ghostty/config
+# iTerm2 cannot send Shift-Space. Ghostty can, by turning it into Ctrl-B,
+# which is the prefix Herdr actually reads.
+#
 # brew install --cask ghostty
-keybind = shift+space=text:\x1b[32;2u
+# Reload Ghostty: Cmd-Shift-,
+# Run `herdr` inside Ghostty, not iTerm.
+
+keybind = shift+space=text:\x02

@@ -28,11 +28,11 @@ install_herdr() {
   curl -fsSL https://herdr.dev/install.sh | sh
 }
 
-# Command-mode prefix. Token is shift+space.
-DEFAULT_PREFIX=shift+space
+# Herdr listens for ctrl+b. Ghostty maps Shift-Space onto that.
+DEFAULT_PREFIX=ctrl+b
 
 prefix_label() {
-  echo "Shift-Space"
+  echo "Shift-Space (Ghostty) / Ctrl-B"
 }
 
 set_prefix() {
