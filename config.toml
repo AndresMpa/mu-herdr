@@ -11,33 +11,56 @@ onboarding = false
 
 # BEGIN MμHerdr theme
 [theme]
-name = "tokyo-night"
+name = "gruvbox"
 auto_switch = false
 
 [theme.custom]
-panel_bg = "#0F111A"
-sidebar_bg = "#0F111A"
-active_row_bg = "#181A1F"
-selection_bg = "#181A1F"
-surface0 = "#181A1F"
-surface1 = "#181A1F"
-surface_dim = "#8F93A2"
-overlay0 = "#84FFFF"
-overlay1 = "#84FFFF"
-text = "#C5C9D6"
-subtext0 = "#C5C9D6"
-accent = "#84FFFF"
-blue = "#82AAFF"
-green = "#C3E88D"
-red = "#F07178"
-yellow = "#FFCB6B"
-teal = "#89DDFF"
-mauve = "#C792EA"
-peach = "#F78C6C"
+panel_bg = "#1d2021"
+sidebar_bg = "#1d2021"
+active_row_bg = "#3c3836"
+selection_bg = "#3c3836"
+surface0 = "#3c3836"
+surface1 = "#3c3836"
+surface_dim = "#928374"
+overlay0 = "#fe8019"
+overlay1 = "#fe8019"
+text = "#ebdbb2"
+subtext0 = "#ebdbb2"
+accent = "#fe8019"
+blue = "#83a598"
+green = "#b8bb26"
+red = "#fb4934"
+yellow = "#fabd2f"
+teal = "#8ec07c"
+mauve = "#d3869b"
+peach = "#fe8019"
 
 [ui]
-accent = "#84FFFF"
+accent = "#fe8019"
 # END MμHerdr theme
+
+# Un-dim machine / tab / agent in the agents panel so the rows are readable.
+status_indicators = "symbols"
+[ui.sidebar.agents]
+rows = [
+  [
+    "state_icon",
+    { token = "machine", fg = "#89b4fa", dim = false },
+    "workspace",
+    { token = "tab", fg = "#cdd6f4", dim = false },
+  ],
+  [{ token = "agent", fg = "#a6adc8", dim = false }],
+]
+
+# Same treatment for the machines panel: branch + git status were dimmed.
+[ui.sidebar.spaces]
+rows = [
+  ["state_icon", "workspace"],
+  [
+    { token = "branch", fg = "#89b4fa", dim = false },
+    { token = "git_status", dim = false },
+  ],
+]
 
 # herdr = in-app toast only. OS banners come from plugin/notify.sh (ram icon).
 # system would duplicate a second banner with Herdr's default icon.
