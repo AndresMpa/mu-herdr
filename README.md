@@ -1,4 +1,9 @@
-# MμHerdr
+
+<div align="center">
+
+  ![Mμ Herdr](./.doc/muherdr.png)
+
+</div>
 
 [Herdr](https://herdr.dev) config. After the prefix, letters match [MμVim](https://github.com/AndresMpa/mu-vim) where a Herdr analog exists.
 
@@ -139,7 +144,13 @@ On agent **blocked** or **done** (not `working` / `idle`): one desktop banner wi
 | Icon | Herdr ram, left side (`plugin/herdr.png`) |
 | Jump | prefix `o` |
 
-`./install.sh` links `muherdr.notify`. If `herdr plugin list` is empty:
+Marketplace (after the `herdr-plugin` GitHub topic is on this repo):
+
+```
+herdr plugin install AndresMpa/mu-herdr/plugin
+```
+
+`./install.sh` links `muherdr.notify` locally. If `herdr plugin list` is empty:
 
 ```
 herdr plugin link ~/.config/herdr/plugin --enabled
