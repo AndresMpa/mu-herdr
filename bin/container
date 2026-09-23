@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# List Docker/Podman/nerdctl containers.
+# List containers via the system runtime (docker, podman, or nerdctl).
+# Same UX either way — the engine is auto-detected and hidden from the UI.
 # Enter: start if stopped, then open a workspace with an interactive shell.
 set -u
 printf '\033]0;Containers\007\033]2;Containers\007'
@@ -65,9 +66,11 @@ list_rows() {
   python3 <<'PY'
 import json, os, shutil, subprocess, sys
 
-def run(cmd):
+def run(cmd, timeout=8):
     try:
-        return subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL)
+        return subprocess.check_output(
+            cmd, text=True, stderr=subprocess.DEVNULL, timeout=timeout
+        )
     except Exception:
         return ""
 
@@ -75,14 +78,32 @@ def short_image(image):
     image = (image or "").strip()
     if not image:
         return "-"
-    # strip registry/digest noise for display
     if "@" in image:
         image = image.split("@", 1)[0]
     base = image.rsplit("/", 1)[-1]
     return base or image
 
+def norm_state(raw):
+    s = (raw or "").strip().lower()
+    if not s:
+        return "unknown"
+    if s in ("running", "up") or s.startswith("up ") or "running" in s:
+        return "running"
+    if s.startswith("exit") or s in ("stopped", "stopping"):
+        return "exited"
+    if s.startswith("creat"):
+        return "created"
+    if "pause" in s:
+        return "paused"
+    if s in ("dead", "removing", "restarting"):
+        return s.split()[0]
+    # "Up 2 hours", "Exited (0) 3 days ago"
+    if s.startswith("up"):
+        return "running"
+    return s.split()[0] if s.split() else "unknown"
+
 def meta_for(eng, name):
-    """volume + dir from inspect. TSV-safe (no tabs/newlines)."""
+    """volume + dir from inspect (docker + podman). TSV-safe."""
     raw = run([eng, "inspect", name])
     vol, directory = "-", "-"
     if not raw:
@@ -103,12 +124,11 @@ def meta_for(eng, name):
         if mtype == "volume":
             n = m.get("Name") or ""
             if n:
-                # dailybotplatformlocal_claude_data -> claude_data
                 n = n.split("_")[-2] + "_" + n.split("_")[-1] if n.count("_") >= 2 else n
                 if n not in vol_names:
                     vol_names.append(n)
-        elif mtype == "bind":
-            src = m.get("Source") or ""
+        elif mtype in ("bind", "bind-mount"):
+            src = m.get("Source") or m.get("source") or ""
             if src:
                 bind_srcs.append(src)
     if vol_names:
@@ -116,16 +136,17 @@ def meta_for(eng, name):
         if len(vol_names) > 3:
             vol += ",+"
     elif bind_srcs:
-        # show basename of first bind as a hint
-        vol = "bind:" + os.path.basename(bind_srcs[0].rstrip("/")) or "bind"
+        base = os.path.basename(bind_srcs[0].rstrip("/")) or "bind"
+        vol = "bind:" + base
 
     directory = (
         labels.get("com.docker.compose.project.working_dir")
+        or labels.get("com.docker.compose.project.workingdir")
+        or labels.get("io.podman.compose.project.working_dir")
         or cfg.get("WorkingDir")
         or (bind_srcs[0] if bind_srcs else "")
         or "-"
     )
-    # prefer ~ for home
     home = os.path.expanduser("~")
     if directory.startswith(home + os.sep):
         directory = "~" + directory[len(home):]
@@ -133,51 +154,118 @@ def meta_for(eng, name):
     vol = vol.replace("\t", " ").replace("\n", " ")
     return vol or "-", directory or "-"
 
-engines = []
-seen_bin = set()
-for name in ("podman", "docker", "nerdctl"):
-    path = shutil.which(name)
-    if not path:
-        continue
-    real = os.path.realpath(path)
-    if real in seen_bin:
-        continue
-    seen_bin.add(real)
-    engines.append(name)
+def pick_engine():
+    """One runtime only. Prefer docker, then podman, then nerdctl.
+    Dedupes podman-docker shims via realpath. Must answer to `ps -a`."""
+    seen = set()
+    for name in ("docker", "podman", "nerdctl"):
+        path = shutil.which(name)
+        if not path:
+            continue
+        real = os.path.realpath(path)
+        if real in seen:
+            continue
+        seen.add(real)
+        # Probe: ps must succeed (daemon/socket up).
+        try:
+            subprocess.check_output(
+                [name, "ps", "-a"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+                timeout=8,
+            )
+            return name
+        except Exception:
+            continue
+    return ""
 
-if not engines:
-    print("x\tinstall docker, podman, or nerdctl\t\t\t\t\t")
+def list_ps(eng):
+    """Return list of dicts with name, state, image, id — docker or podman."""
+    # 1) JSON array (podman ps --format json; some docker builds)
+    raw = run([eng, "ps", "-a", "--format", "json"])
+    items = []
+    if raw.strip().startswith("["):
+        try:
+            items = json.loads(raw)
+        except Exception:
+            items = []
+    elif raw.strip().startswith("{"):
+        # NDJSON (docker ps --format '{{json .}}' style if user aliased)
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                items.append(json.loads(line))
+            except Exception:
+                pass
+
+    rows = []
+    if items:
+        for it in items:
+            names = it.get("Names") or it.get("names") or it.get("Name") or ""
+            if isinstance(names, list):
+                name = (names[0] if names else "") or ""
+            else:
+                name = str(names).split(",")[0].strip()
+            name = name.lstrip("/")
+            state = norm_state(
+                it.get("State")
+                or it.get("state")
+                or it.get("Status")
+                or it.get("status")
+                or ""
+            )
+            image = it.get("Image") or it.get("image") or ""
+            cid = str(it.get("ID") or it.get("Id") or it.get("id") or "")[:12]
+            if name:
+                rows.append((name, state, image, cid))
+        return rows
+
+    # 2) Go-template fallback (docker + podman)
+    for tmpl in (
+        "{{.Names}}\t{{.State}}\t{{.Image}}\t{{.ID}}",
+        "{{.Names}}\t{{.Status}}\t{{.Image}}\t{{.ID}}",
+    ):
+        out = run([eng, "ps", "-a", "--format", tmpl])
+        if not out.strip():
+            continue
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) < 2:
+                continue
+            name = parts[0].strip().lstrip("/").split(",")[0]
+            state = norm_state(parts[1])
+            image = parts[2].strip() if len(parts) > 2 else ""
+            cid = (parts[3].strip() if len(parts) > 3 else "")[:12]
+            if name:
+                rows.append((name, state, image, cid))
+        if rows:
+            break
+    return rows
+
+eng = pick_engine()
+if not eng:
+    print("x\tinstall docker or podman\t\t\t\t\t")
     sys.exit(0)
 
+# Runtime stays internal (row field eng). No docker/podman label in the UI.
+seen = set()
 rows = []
-seen_c = set()
-for eng in engines:
-    out = run([eng, "ps", "-a", "--format", "{{.Names}}\t{{.State}}\t{{.Image}}\t{{.ID}}"])
-    for line in out.splitlines():
-        parts = line.split("\t")
-        if len(parts) < 2:
-            continue
-        name, state = parts[0].strip(), parts[1].strip().lower()
-        if state.startswith("up") or state == "running":
-            state = "running"
-        elif state.startswith("exit"):
-            state = "exited"
-        image = parts[2].strip() if len(parts) > 2 else ""
-        cid = (parts[3].strip() if len(parts) > 3 else "")[:12]
-        key = cid or ("%s/%s" % (eng, name))
-        if not name or key in seen_c or name in seen_c:
-            continue
-        seen_c.add(key)
-        seen_c.add(name)
-        vol, directory = meta_for(eng, name)
-        rows.append((eng, name, state, short_image(image), vol, directory))
+for name, state, image, cid in list_ps(eng):
+    key = cid or name
+    if not name or key in seen or name in seen:
+        continue
+    seen.add(key)
+    seen.add(name)
+    vol, directory = meta_for(eng, name)
+    rows.append((eng, name, state, short_image(image), vol, directory))
 
 if not rows:
     print("x\t(no containers)\t\t\t\t\t")
     sys.exit(0)
 
 rows.sort(key=lambda r: (0 if r[2] == "running" else 1, r[1].lower()))
-# c \t eng \t name \t state \t image \t volume \t dir
 for eng, name, state, image, vol, directory in rows:
     print("c\t%s\t%s\t%s\t%s\t%s\t%s" % (eng, name, state, image, vol, directory))
 PY
@@ -463,8 +551,16 @@ is_running() {
   local eng=$1
   local name=$2
   local st
+  # docker + podman both expose State.Running; fall back to Status.
   st=$("$eng" inspect -f '{{.State.Running}}' "$name" 2>/dev/null) || return 1
-  [ "$st" = true ] || [ "$st" = True ]
+  case $st in
+    true|True|TRUE|1) return 0 ;;
+  esac
+  st=$("$eng" inspect -f '{{.State.Status}}' "$name" 2>/dev/null) || return 1
+  case $st in
+    running|Running) return 0 ;;
+  esac
+  return 1
 }
 
 start_container() {
@@ -524,19 +620,21 @@ open_container_workspace() {
     ctr_log "no root pane name=$name"
     return 1
   }
-  "$HERDR_BIN" pane rename "$pane" "$eng:$sn" >/dev/null 2>&1 || true
-  # Prefer bash; fall back to sh. Retry a few times if the container is still booting.
+  # Pane title is the container name only — no docker/podman leak.
+  "$HERDR_BIN" pane rename "$pane" "$sn" >/dev/null 2>&1 || true
+  # Prefer bash; fall back to sh. Same flags work on docker and podman.
   local attempt=0
   while [ "$attempt" -lt 6 ]; do
-    if "$HERDR_BIN" pane run "$pane" "$eng" exec -it "$name" sh -c 'exec bash 2>/dev/null || exec sh' >/dev/null 2>&1; then
-      ctr_log "opened workspace name=$name pane=$pane"
+    if "$HERDR_BIN" pane run "$pane" "$eng" exec -it "$name" \
+      sh -c 'exec bash 2>/dev/null || exec sh' >/dev/null 2>&1; then
+      ctr_log "opened workspace eng=$eng name=$name pane=$pane"
       return 0
     fi
     sleep 0.4
     attempt=$((attempt + 1))
   done
-  open_err="could not exec into ${name} (is the entrypoint blocking TTY?)"
-  ctr_log "exec fail name=$name pane=$pane"
+  open_err="could not exec into ${name} (entrypoint blocking TTY?)"
+  ctr_log "exec fail eng=$eng name=$name pane=$pane"
   return 1
 }
 
@@ -555,18 +653,18 @@ do_enter() {
   sn=$(short_name "$name")
   ctr_log "enter eng=$eng name=$name state=$state"
   status="starting ${sn}..."
-  detail="$eng start ${name}"
+  detail="start ${name}"
   status_err=0
   draw
   if ! start_container "$eng" "$name"; then
     show_fail \
       "could not start ${sn}" \
-      "${start_err}. Check docker ps -a and try again."
+      "${start_err}. Is the container runtime running?"
     return
   fi
   states[$i]=running
   status="opening shell in ${sn}..."
-  detail="workspace + ${eng} exec"
+  detail="workspace + shell"
   status_err=0
   draw
   if ! open_container_workspace "$eng" "$name"; then
