@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Theme-style modal: pick a Docker/Podman/nerdctl container
-# and add it as a pane in the current Herdr workspace.
+# List Docker/Podman/nerdctl containers.
+# Enter: start if stopped, then open a workspace with an interactive shell.
 set -u
 printf '\033]0;Containers\007\033]2;Containers\007'
 
@@ -8,11 +8,19 @@ HERE=$(cd "$(dirname "$0")/.." && pwd)
 HOME_DIR=${HOME:-}
 CONF="${HERDR_CONFIG_PATH:-$HOME_DIR/.config/herdr/config.toml}"
 CONF_DIR=$(dirname "$CONF")
+HERDR_BIN=${HERDR_BIN_PATH:-herdr}
 THEMES="$HERE/themes"
 [ -d "$THEMES" ] || THEMES="$CONF_DIR/themes"
+LOG="$CONF_DIR/container.log"
 accent="#84FFFF"
 red="#F07178"
+green="#C3E88D"
+yellow="#FFCB6B"
 fg="#C5C9D6"
+
+ctr_log() {
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$LOG" 2>/dev/null || true
+}
 
 load_colors() {
   local pal="$THEMES/deep-ocean.toml"
@@ -24,6 +32,8 @@ load_colors() {
     case $k in
       accent) accent=$v ;;
       red) red=$v ;;
+      green) green=$v ;;
+      yellow) yellow=$v ;;
       fg) fg=$v ;;
     esac
   done <"$pal"
@@ -44,7 +54,7 @@ maxw=$((cols - 4))
 [ "$maxw" -gt 16 ] || maxw=16
 
 clip() {
-  printf '%s' "$1" | awk -v m="$maxw" '{ s=$0; if (length(s)>m) s=substr(s,1,m-1)"…"; print s }'
+  printf '%s' "$1" | awk -v m="$maxw" '{ s=$0; if (length(s)>m) s=substr(s,1,m-1)"..."; print s }'
 }
 
 save_tty=$(stty -g 2>/dev/null) || save_tty=
@@ -53,7 +63,7 @@ trap 'printf "\033[?25h"; [ -n "$save_tty" ] && stty "$save_tty"' EXIT
 
 list_rows() {
   python3 <<'PY'
-import os, shutil, subprocess, sys
+import json, os, shutil, subprocess, sys
 
 def run(cmd):
     try:
@@ -61,8 +71,67 @@ def run(cmd):
     except Exception:
         return ""
 
-def has(name):
-    return shutil.which(name) is not None
+def short_image(image):
+    image = (image or "").strip()
+    if not image:
+        return "-"
+    # strip registry/digest noise for display
+    if "@" in image:
+        image = image.split("@", 1)[0]
+    base = image.rsplit("/", 1)[-1]
+    return base or image
+
+def meta_for(eng, name):
+    """volume + dir from inspect. TSV-safe (no tabs/newlines)."""
+    raw = run([eng, "inspect", name])
+    vol, directory = "-", "-"
+    if not raw:
+        return vol, directory
+    try:
+        data = json.loads(raw)
+        info = data[0] if isinstance(data, list) and data else data
+    except Exception:
+        return vol, directory
+    cfg = info.get("Config") or {}
+    labels = cfg.get("Labels") or {}
+    mounts = info.get("Mounts") or []
+
+    vol_names = []
+    bind_srcs = []
+    for m in mounts:
+        mtype = (m.get("Type") or "").lower()
+        if mtype == "volume":
+            n = m.get("Name") or ""
+            if n:
+                # dailybotplatformlocal_claude_data -> claude_data
+                n = n.split("_")[-2] + "_" + n.split("_")[-1] if n.count("_") >= 2 else n
+                if n not in vol_names:
+                    vol_names.append(n)
+        elif mtype == "bind":
+            src = m.get("Source") or ""
+            if src:
+                bind_srcs.append(src)
+    if vol_names:
+        vol = ",".join(vol_names[:3])
+        if len(vol_names) > 3:
+            vol += ",+"
+    elif bind_srcs:
+        # show basename of first bind as a hint
+        vol = "bind:" + os.path.basename(bind_srcs[0].rstrip("/")) or "bind"
+
+    directory = (
+        labels.get("com.docker.compose.project.working_dir")
+        or cfg.get("WorkingDir")
+        or (bind_srcs[0] if bind_srcs else "")
+        or "-"
+    )
+    # prefer ~ for home
+    home = os.path.expanduser("~")
+    if directory.startswith(home + os.sep):
+        directory = "~" + directory[len(home):]
+    directory = directory.replace("\t", " ").replace("\n", " ")
+    vol = vol.replace("\t", " ").replace("\n", " ")
+    return vol or "-", directory or "-"
 
 engines = []
 seen_bin = set()
@@ -77,10 +146,10 @@ for name in ("podman", "docker", "nerdctl"):
     engines.append(name)
 
 if not engines:
-    print("x\tinstall docker, podman, or nerdctl\t\t\t")
+    print("x\tinstall docker, podman, or nerdctl\t\t\t\t\t")
     sys.exit(0)
 
-any_c = False
+rows = []
 seen_c = set()
 for eng in engines:
     out = run([eng, "ps", "-a", "--format", "{{.Names}}\t{{.State}}\t{{.Image}}\t{{.ID}}"])
@@ -89,18 +158,28 @@ for eng in engines:
         if len(parts) < 2:
             continue
         name, state = parts[0].strip(), parts[1].strip().lower()
+        if state.startswith("up") or state == "running":
+            state = "running"
+        elif state.startswith("exit"):
+            state = "exited"
         image = parts[2].strip() if len(parts) > 2 else ""
         cid = (parts[3].strip() if len(parts) > 3 else "")[:12]
         key = cid or ("%s/%s" % (eng, name))
-        if key in seen_c or name in seen_c:
+        if not name or key in seen_c or name in seen_c:
             continue
         seen_c.add(key)
-        if name:
-            seen_c.add(name)
-        print("c\t%s\t%s\t%s\t%s" % (eng, name, state, image))
-        any_c = True
-if not any_c:
-    print("x\t(no containers)\t\t\t")
+        seen_c.add(name)
+        vol, directory = meta_for(eng, name)
+        rows.append((eng, name, state, short_image(image), vol, directory))
+
+if not rows:
+    print("x\t(no containers)\t\t\t\t\t")
+    sys.exit(0)
+
+rows.sort(key=lambda r: (0 if r[2] == "running" else 1, r[1].lower()))
+# c \t eng \t name \t state \t image \t volume \t dir
+for eng, name, state, image, vol, directory in rows:
+    print("c\t%s\t%s\t%s\t%s\t%s\t%s" % (eng, name, state, image, vol, directory))
 PY
 }
 
@@ -113,19 +192,25 @@ types=()
 engines=()
 names=()
 states=()
-extra=()
+images=()
+volumes=()
+dirs=()
 while IFS= read -r line || [ -n "$line" ]; do
   [ -z "$line" ] && continue
   t=$(printf '%s' "$line" | cut -f1)
   e=$(printf '%s' "$line" | cut -f2)
   n=$(printf '%s' "$line" | cut -f3)
   s=$(printf '%s' "$line" | cut -f4)
-  x=$(printf '%s' "$line" | cut -f5)
+  img=$(printf '%s' "$line" | cut -f5)
+  vol=$(printf '%s' "$line" | cut -f6)
+  d=$(printf '%s' "$line" | cut -f7)
   types+=("$t")
   engines+=("$e")
   names+=("$n")
   states+=("$s")
-  extra+=("$x")
+  images+=("$img")
+  volumes+=("$vol")
+  dirs+=("$d")
 done <"$TMP"
 rm -f "$TMP"
 
@@ -163,23 +248,107 @@ move() {
 }
 
 status=""
+detail=""
+status_err=0
+
+# Parallel 0/1 flags — rows start collapsed.
+expanded=()
+x=0
+while [ "$x" -lt "$n" ]; do
+  expanded+=("0")
+  x=$((x + 1))
+done
+
+short_name() {
+  # dailybotplatformlocal-discordgateway-1 -> discordgateway
+  printf '%s' "$1" | sed -E \
+    -e 's/^dailybotplatformlocal[-_]//' \
+    -e 's/^dailybot[-_]//' \
+    -e 's/[-_][0-9]+$//'
+}
+
+toggle_expand() {
+  if [ "${expanded[$i]}" = 1 ]; then
+    expanded[$i]=0
+  else
+    expanded[$i]=1
+  fi
+}
+
+state_color() {
+  case $1 in
+    running) printf '%s' "$green" ;;
+    exited|dead) printf '%s' "$red" ;;
+    created|paused) printf '%s' "$yellow" ;;
+    *) printf '%s' "$fg" ;;
+  esac
+}
+
+print_name_state() {
+  # $1 prefix, $2 short name, $3 state, $4 name/parens color
+  local pref=$1
+  local sn=$2
+  local st=$3
+  local nc=${4:-$fg}
+  hex_fg "$nc"
+  printf '\033[K%s%s (' "$pref" "$(clip "$sn")"
+  hex_fg "$(state_color "$st")"
+  printf '%s' "$st"
+  hex_fg "$nc"
+  printf ')\n'
+  rst
+}
+
+draw_detail_lines() {
+  local idx=$1
+  local pad=$2
+  local st=${states[$idx]}
+  printf '\033[K%s- state: ' "$pad"
+  hex_fg "$(state_color "$st")"
+  printf '%s' "$st"
+  rst
+  printf '\n'
+  hex_fg "$fg"
+  printf '\033[K%s- image: %s\n' "$pad" "$(clip "${images[$idx]}")"
+  printf '\033[K%s- volume: %s\n' "$pad" "$(clip "${volumes[$idx]}")"
+  printf '\033[K%s- dir: %s\n' "$pad" "$(clip "${dirs[$idx]}")"
+  rst
+}
 
 draw() {
-  local x t mark label
-  printf '\033[?25l\033[H'
+  local x t sn mark
+  printf '\033[?25l\033[H\033[J'
   printf '\033[K'
   printf '  MμHerdr containers  '
   hex_fg "$accent"
   printf 'j/k'
   rst
-  printf '  Enter add  '
+  printf '  Enter start  '
+  hex_fg "$accent"
+  printf 'Space'
+  rst
+  printf ' expand  '
   hex_fg "$red"
   printf 'Esc'
   rst
   printf ' cancel\n'
   printf '\033[K'
   if [ -n "$status" ]; then
+    if [ "$status_err" = 1 ]; then
+      hex_fg "$red"
+    else
+      hex_fg "$accent"
+    fi
     printf '  %s\n' "$(clip "$status")"
+    rst
+  else
+    printf '\n'
+  fi
+  printf '\033[K'
+  if [ -n "$detail" ]; then
+    hex_fg "$fg"
+    printf '  %s\n' "$(clip "$detail")"
+    rst
   else
     printf '\n'
   fi
@@ -196,11 +365,20 @@ draw() {
       printf '    %s\n' "$(clip "${engines[$x]} ${names[$x]}")"
       rst
     else
-      label=$(printf '%-8s  %-16s  %-10s  %s' "${engines[$x]}" "${names[$x]}" "${states[$x]}" "${extra[$x]}")
-      if [ "$x" -eq "$i" ]; then
-        printf '  ❯ %s\n' "$(clip "$label")"
+      sn=$(short_name "${names[$x]}")
+      # ❯ = selected (Herdr-style). ℹ = expanded details (info).
+      # Parens use the same color as the name (accent when selected).
+      if [ "$x" -eq "$i" ] && [ "${expanded[$x]}" = 1 ]; then
+        print_name_state "  ℹ " "$sn" "${states[$x]}" "$accent"
+      elif [ "$x" -eq "$i" ]; then
+        print_name_state "  ❯ " "$sn" "${states[$x]}" "$accent"
+      elif [ "${expanded[$x]}" = 1 ]; then
+        print_name_state "  ℹ " "$sn" "${states[$x]}" "$fg"
       else
-        printf '    %s\n' "$(clip "$label")"
+        print_name_state "    " "$sn" "${states[$x]}" "$fg"
+      fi
+      if [ "${expanded[$x]}" = 1 ]; then
+        draw_detail_lines "$x" "      "
       fi
     fi
     x=$((x + 1))
@@ -208,29 +386,158 @@ draw() {
   printf '\033[J'
 }
 
-parse_pane_id() {
+# Sets ACTION: enter | expand | up | down | quit | none
+read_action() {
+  local k c seq
+  ACTION=none
+  IFS= read -r -n 1 k || { ACTION=quit; return; }
+  case $k in
+    j) ACTION=down; return ;;
+    k) ACTION=up; return ;;
+    q) ACTION=quit; return ;;
+    ' ') ACTION=expand; return ;;
+  esac
+  if [ -z "$k" ] || [ "$k" = "$(printf '\n')" ] || [ "$k" = "$(printf '\r')" ]; then
+    ACTION=enter
+    return
+  fi
+  if [ "$k" != "$(printf '\033')" ]; then
+    ACTION=none
+    return
+  fi
+  # Escape sequence (arrows / bare Esc).
+  seq=""
+  if IFS= read -r -n 1 -t 1 c; then
+    seq=$c
+    if [ "$c" = '[' ]; then
+      while IFS= read -r -n 1 -t 1 c; do
+        seq="${seq}${c}"
+        case $c in
+          A) ACTION=up; return ;;
+          B) ACTION=down; return ;;
+          u|'~'|z|Z) break ;;
+        esac
+        [ ${#seq} -gt 30 ] && break
+      done
+    fi
+  else
+    ACTION=quit
+    return
+  fi
+  if [ -z "$seq" ] || [ "$seq" = '[' ]; then
+    ACTION=quit
+  else
+    ACTION=none
+  fi
+}
+
+show_fail() {
+  local title=$1
+  local body=$2
+  ctr_log "fail ui: $title | $body"
+  printf '\033[?25h\033[H\033[J'
+  hex_fg "$red"
+  printf '\n  X  %s\n\n' "$title"
+  rst
+  hex_fg "$fg"
+  printf '%s\n' "$body" | fold -s -w $((maxw > 20 ? maxw : 40)) | sed 's/^/  /'
+  printf '\n'
+  rst
+  printf '  Press any key to go back...\n'
+  IFS= read -r -n 1 _ || true
+  status=""
+  detail=""
+  status_err=0
+  printf '\033[?25l\033[H\033[J'
+}
+
+parse_root_pane() {
   python3 -c '
 import json, sys
 d = json.load(sys.stdin)
-p = (d.get("result") or {}).get("pane") or {}
-print(p.get("pane_id") or "")
+print(((d.get("result") or {}).get("root_pane") or {}).get("pane_id") or "")
 '
 }
 
-add_workspace_pane() {
-  local title=$1
-  shift
-  local json id pane
-  pane=${HERDR_ACTIVE_PANE_ID:-}
-  if [ -n "$pane" ]; then
-    json=$(herdr pane split --pane "$pane" --direction right --focus) || return 1
-  else
-    json=$(herdr pane split --current --direction right --focus) || return 1
+is_running() {
+  local eng=$1
+  local name=$2
+  local st
+  st=$("$eng" inspect -f '{{.State.Running}}' "$name" 2>/dev/null) || return 1
+  [ "$st" = true ] || [ "$st" = True ]
+}
+
+start_container() {
+  local eng=$1
+  local name=$2
+  local errfile rc
+  errfile=$(mktemp)
+  ctr_log "start begin eng=$eng name=$name"
+  if is_running "$eng" "$name"; then
+    rm -f "$errfile"
+    ctr_log "already running name=$name"
+    return 0
   fi
-  id=$(printf '%s' "$json" | parse_pane_id)
-  [ -n "$id" ] || return 1
-  herdr pane rename "$id" "$title" >/dev/null 2>&1 || true
-  herdr pane run "$id" "$@" >/dev/null 2>&1 || return 1
+  "$eng" start "$name" >"$errfile" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    start_err=$(tr '\n' ' ' <"$errfile" | sed 's/[[:space:]]*$//')
+    rm -f "$errfile"
+    [ -n "$start_err" ] || start_err="$eng start failed (exit $rc)"
+    ctr_log "start fail name=$name err=$start_err"
+    return 1
+  fi
+  rm -f "$errfile"
+  # Wait briefly until the runtime reports running (exec needs a live PID 1).
+  local n=0
+  while [ "$n" -lt 20 ]; do
+    if is_running "$eng" "$name"; then
+      ctr_log "start ok name=$name"
+      return 0
+    fi
+    sleep 0.25
+    n=$((n + 1))
+  done
+  start_err="started but not running yet"
+  ctr_log "start timeout name=$name"
+  return 1
+}
+
+open_container_workspace() {
+  local eng=$1
+  local name=$2
+  local label sn json pane err
+  sn=$(short_name "$name")
+  label=$sn
+  err=$(mktemp)
+  json=$("$HERDR_BIN" workspace create --label "$label" --focus 2>"$err") || {
+    open_err=$(tr '\n' ' ' <"$err" | sed 's/[[:space:]]*$//')
+    rm -f "$err"
+    [ -n "$open_err" ] || open_err="herdr workspace create failed"
+    ctr_log "workspace create fail name=$name err=$open_err"
+    return 1
+  }
+  rm -f "$err"
+  pane=$(printf '%s' "$json" | parse_root_pane)
+  [ -n "$pane" ] || {
+    open_err="no root pane in workspace create response"
+    ctr_log "no root pane name=$name"
+    return 1
+  }
+  "$HERDR_BIN" pane rename "$pane" "$eng:$sn" >/dev/null 2>&1 || true
+  # Prefer bash; fall back to sh. Retry a few times if the container is still booting.
+  local attempt=0
+  while [ "$attempt" -lt 6 ]; do
+    if "$HERDR_BIN" pane run "$pane" "$eng" exec -it "$name" sh -c 'exec bash 2>/dev/null || exec sh' >/dev/null 2>&1; then
+      ctr_log "opened workspace name=$name pane=$pane"
+      return 0
+    fi
+    sleep 0.4
+    attempt=$((attempt + 1))
+  done
+  open_err="could not exec into ${name} (is the entrypoint blocking TTY?)"
+  ctr_log "exec fail name=$name pane=$pane"
+  return 1
 }
 
 do_enter() {
@@ -238,31 +545,50 @@ do_enter() {
   local eng=${engines[$i]}
   local name=${names[$i]}
   local state=${states[$i]}
+  local sn
+  start_err=""
+  open_err=""
   case $t in
-    c)
-      if [ "$state" != running ]; then
-        "$eng" start "$name" >/dev/null 2>&1 || { status="could not start $name"; return; }
-      fi
-      add_workspace_pane "$eng:$name" "$eng" exec -it "$name" sh -c 'exec bash || exec sh' \
-        || { status="could not add $name"; return; }
-      ;;
-    *)
-      return
-      ;;
+    c) ;;
+    *) return ;;
   esac
+  sn=$(short_name "$name")
+  ctr_log "enter eng=$eng name=$name state=$state"
+  status="starting ${sn}..."
+  detail="$eng start ${name}"
+  status_err=0
+  draw
+  if ! start_container "$eng" "$name"; then
+    show_fail \
+      "could not start ${sn}" \
+      "${start_err}. Check docker ps -a and try again."
+    return
+  fi
+  states[$i]=running
+  status="opening shell in ${sn}..."
+  detail="workspace + ${eng} exec"
+  status_err=0
+  draw
+  if ! open_container_workspace "$eng" "$name"; then
+    show_fail \
+      "container ${sn} is up, but shell failed" \
+      "${open_err}"
+    return
+  fi
+  ctr_log "done name=$name"
   exit 0
 }
 
+ctr_log "start n=$n bin=$HERDR_BIN"
+
 while true; do
   draw
-  IFS= read -r -n 1 key || key=
-  if [ "$key" = j ]; then
-    move 1
-  elif [ "$key" = k ]; then
-    move -1
-  elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
-    exit 0
-  else
-    do_enter
-  fi
+  read_action
+  case $ACTION in
+    down) move 1 ;;
+    up) move -1 ;;
+    quit) exit 0 ;;
+    expand) toggle_expand ;;
+    enter) do_enter ;;
+  esac
 done
