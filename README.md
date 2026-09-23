@@ -104,15 +104,16 @@ Prefix `e`. Popup title: **SSH**. OpenSSH only (not `herdr machine`).
 | Row | Enter |
 | --- | --- |
 | key (`~/.ssh/*.pub`) | `ssh-add` (Keychain on Mac); marks it for the next host |
-| host (`Host` in `~/.ssh/config`, no `*`/`?`) | `ssh` that alias; marked key or `IdentityFile` |
+| host (`Host` in `~/.ssh/config` + `Include`, no `*`/`?`) | probe SSH, then `herdr machine add` — first is `host`, next Enters add `host 2`, `host 3`, … |
+| machine (saved Herdr profile) | `d` removes (`y` confirm, `c` cancel) |
 
-`j`/`k`, Esc, `❯`. Passphrases stay in the popup. Private keys are not printed.
+`j`/`k` or click to select, Esc cancels. Passphrases stay in the popup. Private keys are not printed.
 
 ## Containers
 
 Prefix `p`. Popup title: **Containers**. Docker, Podman, or nerdctl (`ps -a` only, no images).
 
-`j`/`k` move, Enter adds the container as a pane in the current workspace (`docker:name` / `podman:name`), Esc cancels. Stopped containers are started, then `exec -it` (bash or sh). Duplicate engine/IDs are skipped.
+`j`/`k` move. Enter starts the container (if stopped) and opens a workspace shell. Space expands/collapses details (`state`, `image`, `volume`, `dir`). Esc cancels. Failures show a full-screen error.
 
 ## Navigate
 
