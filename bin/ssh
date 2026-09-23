@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# List SSH keys and ~/.ssh/config hosts. Enter loads a key or opens ssh.
+# List SSH keys, ~/.ssh/config hosts (follows Include), and Herdr machines.
+# Enter on a key: ssh-add (Keychain on Mac); marks it for the next host.
+# Enter on a host: add a Herdr machine (host, host 2, host 3, ...).
+# d on a machine: remove that profile (y confirm, c cancel).
 set -u
 printf '\033]0;SSH\007\033]2;SSH\007'
 
@@ -8,11 +11,17 @@ HOME_DIR=${HOME:-}
 SSH_DIR="${HOME_DIR}/.ssh"
 CONF="${HERDR_CONFIG_PATH:-$HOME_DIR/.config/herdr/config.toml}"
 CONF_DIR=$(dirname "$CONF")
+HERDR_BIN=${HERDR_BIN_PATH:-herdr}
 THEMES="$HERE/themes"
 [ -d "$THEMES" ] || THEMES="$CONF_DIR/themes"
+LOG="$CONF_DIR/ssh.log"
 accent="#84FFFF"
 red="#F07178"
 fg="#C5C9D6"
+
+ssh_log() {
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$LOG" 2>/dev/null || true
+}
 
 load_colors() {
   local pal="$THEMES/deep-ocean.toml"
@@ -44,12 +53,33 @@ maxw=$((cols - 4))
 [ "$maxw" -gt 16 ] || maxw=16
 
 clip() {
-  printf '%s' "$1" | awk -v m="$maxw" '{ s=$0; if (length(s)>m) s=substr(s,1,m-1)"…"; print s }'
+  printf '%s' "$1" | awk -v m="$maxw" '{ s=$0; if (length(s)>m) s=substr(s,1,m-1)"..."; print s }'
+}
+
+# Pad/truncate to exact width (ASCII-safe; glyphs like ❯ stay outside).
+pad() {
+  local s=$1
+  local w=$2
+  printf '%s' "$s" | awk -v w="$w" '{
+    s=$0
+    if (length(s)>w) s=substr(s,1,w-1) "..."
+    printf "%-*s", w, s
+  }'
 }
 
 save_tty=$(stty -g 2>/dev/null) || save_tty=
 stty -echo -icanon 2>/dev/null || true
 trap 'printf "\033[?25h"; [ -n "$save_tty" ] && stty "$save_tty"' EXIT
+
+restore_tty() {
+  printf '\033[?25h'
+  [ -n "$save_tty" ] && stty "$save_tty"
+}
+
+raw_tty() {
+  stty -echo -icanon 2>/dev/null || true
+  printf '\033[?25l'
+}
 
 list_rows() {
   python3 - "$SSH_DIR" <<'PY'
@@ -81,27 +111,39 @@ for pub in pubs:
     print("k\t%s\t%s\t%s\t%s" % (name, priv, fp, in_agent))
 
 print("s\thosts\t\t")
-cfg = os.path.join(ssh_dir, "config")
 hosts = []
-if os.path.isfile(cfg):
+seen_host = set()
+seen_files = set()
+
+def flush(current, meta):
+    if not current:
+        return
+    user = meta.get("user", "")
+    hostname = meta.get("hostname", "")
+    identity = meta.get("identityfile", "")
+    if identity.startswith("~"):
+        identity = os.path.expanduser(identity)
+    for h in current:
+        if "*" in h or "?" in h or h in seen_host:
+            continue
+        seen_host.add(h)
+        dest = hostname or h
+        who = ("%s@%s" % (user, dest)) if user else dest
+        hosts.append((h, who, identity))
+
+def parse_config(path):
+    path = os.path.abspath(os.path.expanduser(path))
+    if path in seen_files or not os.path.isfile(path):
+        return
+    seen_files.add(path)
     current = []
     meta = {}
-    def flush():
-        if not current:
-            return
-        user = meta.get("user", "")
-        hostname = meta.get("hostname", "")
-        identity = meta.get("identityfile", "")
-        if identity.startswith("~"):
-            identity = os.path.expanduser(identity)
-        for h in current:
-            if "*" in h or "?" in h:
-                continue
-            dest = hostname or h
-            who = ("%s@%s" % (user, dest)) if user else dest
-            hosts.append((h, who, identity))
-    with open(cfg) as f:
-        for raw in f:
+    try:
+        fh = open(path)
+    except OSError:
+        return
+    with fh:
+        for raw in fh:
             line = raw.split("#", 1)[0].strip()
             if not line:
                 continue
@@ -109,8 +151,19 @@ if os.path.isfile(cfg):
             if len(parts) < 2:
                 continue
             key, val = parts[0].lower(), parts[1].strip().strip('"')
-            if key == "host":
-                flush()
+            if key == "include":
+                flush(current, meta)
+                current = []
+                meta = {}
+                base = os.path.dirname(path)
+                for pat in val.split():
+                    pat = os.path.expanduser(pat)
+                    if not os.path.isabs(pat):
+                        pat = os.path.join(base, pat)
+                    for inc in sorted(glob.glob(pat)):
+                        parse_config(inc)
+            elif key == "host":
+                flush(current, meta)
                 current = val.split()
                 meta = {}
             elif key == "hostname":
@@ -119,7 +172,9 @@ if os.path.isfile(cfg):
                 meta["user"] = val
             elif key == "identityfile":
                 meta["identityfile"] = val
-        flush()
+    flush(current, meta)
+
+parse_config(os.path.join(ssh_dir, "config"))
 if not hosts:
     print("x\t(no Host entries in ~/.ssh/config)\t\t")
 for h, who, ident in hosts:
@@ -127,40 +182,81 @@ for h, who, ident in hosts:
 PY
 }
 
-load_colors
+list_machines() {
+  "$HERDR_BIN" machine list --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    rows = json.load(sys.stdin)
+except Exception:
+    rows = []
+print("s\tmachines\t\t\t")
+if not rows:
+    print("x\t(no saved machines)\t\t\t")
+    sys.exit(0)
+for m in rows:
+    mid = (m.get("id") or "").replace("\t", " ")
+    label = (m.get("label") or mid or "?").replace("\t", " ")
+    target = (m.get("target") or "").replace("\t", " ")
+    sess = (m.get("session") or "default").replace("\t", " ")
+    en = "on" if m.get("enabled") else "off"
+    # m \t label \t target \t session \t id \t enabled
+    print("m\t%s\t%s\t%s\t%s\t%s" % (label, target, sess, mid, en))
+'
+}
 
-TMP=$(mktemp)
-list_rows >"$TMP" || { rm -f "$TMP"; echo "could not list SSH keys/hosts" >&2; exit 1; }
+load_rows() {
+  local line t nm p x f e
+  types=()
+  names=()
+  paths=()
+  extra=()
+  flags=()
+  enabled=()
+  row_y=() # screen line of each row after header (for mouse)
+  TMP=$(mktemp)
+  {
+    list_rows
+    list_machines
+  } >"$TMP" || { rm -f "$TMP"; return 1; }
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ -z "$line" ] && continue
+    t=$(printf '%s' "$line" | cut -f1)
+    nm=$(printf '%s' "$line" | cut -f2)
+    p=$(printf '%s' "$line" | cut -f3)
+    x=$(printf '%s' "$line" | cut -f4)
+    f=$(printf '%s' "$line" | cut -f5)
+    e=$(printf '%s' "$line" | cut -f6)
+    types+=("$t")
+    names+=("$nm")
+    paths+=("$p")
+    extra+=("$x")
+    flags+=("$f")
+    enabled+=("$e")
+  done <"$TMP"
+  rm -f "$TMP"
+  # Global row count (must not be local — callers use $n).
+  n=${#types[@]}
+  [ "$n" -gt 0 ] || return 1
+  return 0
+}
+
+load_colors
 
 types=()
 names=()
 paths=()
 extra=()
 flags=()
-while IFS= read -r line || [ -n "$line" ]; do
-  [ -z "$line" ] && continue
-  t=$(printf '%s' "$line" | cut -f1)
-  n=$(printf '%s' "$line" | cut -f2)
-  p=$(printf '%s' "$line" | cut -f3)
-  x=$(printf '%s' "$line" | cut -f4)
-  f=$(printf '%s' "$line" | cut -f5)
-  types+=("$t")
-  names+=("$n")
-  paths+=("$p")
-  extra+=("$x")
-  flags+=("$f")
-done <"$TMP"
-rm -f "$TMP"
-
-n=${#types[@]}
-[ "$n" -gt 0 ] || { echo "nothing to show"; exit 1; }
+enabled=()
+row_y=()
+load_rows || { echo "could not list SSH keys/hosts/machines" >&2; exit 1; }
 
 i=0
 first_sel() {
   local x=0
   while [ "$x" -lt "$n" ]; do
     case ${types[$x]} in
-      k|h) i=$x; return ;;
+      k|h|m) i=$x; return ;;
     esac
     x=$((x + 1))
   done
@@ -179,28 +275,54 @@ move() {
       x=0
     fi
     case ${types[$x]} in
-      k|h) i=$x; return ;;
+      k|h|m) i=$x; return ;;
     esac
     [ "$x" -eq "$i" ] && return
   done
 }
 
+# Map absolute screen row (1-based) to list index; empty if none.
+row_at_y() {
+  local y=$1
+  local x=0
+  while [ "$x" -lt "$n" ]; do
+    if [ "${row_y[$x]:-}" = "$y" ]; then
+      case ${types[$x]} in
+        k|h|m) printf '%s' "$x"; return 0 ;;
+      esac
+    fi
+    x=$((x + 1))
+  done
+  return 1
+}
+
 active_key=""
 status=""
+detail=""
+status_err=0
+
+# Header occupies this many lines before the list (for mouse y mapping).
+HDR_LINES=4
 
 draw() {
-  local x t label mark
-  printf '\033[?25l\033[H'
+  local x t label sy
+  row_y=()
+  sy=$HDR_LINES
+  printf '\033[?25l\033[H\033[J'
   printf '\033[K'
   printf '  MμHerdr ssh  '
   hex_fg "$accent"
   printf 'j/k'
   rst
   printf '  Enter  '
+  hex_fg "$accent"
+  printf 'd'
+  rst
+  printf ' remove  '
   hex_fg "$red"
   printf 'Esc'
   rst
-  printf '  cancel\n'
+  printf ' cancel\n'
   printf '\033[K'
   if [ -n "$active_key" ]; then
     printf '  key %s\n' "$(clip "$active_key")"
@@ -209,13 +331,29 @@ draw() {
   fi
   printf '\033[K'
   if [ -n "$status" ]; then
+    if [ "$status_err" = 1 ]; then
+      hex_fg "$red"
+    else
+      hex_fg "$accent"
+    fi
     printf '  %s\n' "$(clip "$status")"
+    rst
+  else
+    printf '\n'
+  fi
+  printf '\033[K'
+  if [ -n "$detail" ]; then
+    hex_fg "$fg"
+    printf '  %s\n' "$(clip "$detail")"
+    rst
   else
     printf '\n'
   fi
   x=0
   while [ "$x" -lt "$n" ]; do
     t=${types[$x]}
+    sy=$((sy + 1))
+    row_y[$x]=$sy
     printf '\033[K'
     if [ "$t" = s ]; then
       hex_fg "$accent"
@@ -226,19 +364,47 @@ draw() {
       printf '    %s\n' "$(clip "${names[$x]}")"
       rst
     else
-      if [ "$t" = k ]; then
-        if [ "${flags[$x]}" = 1 ]; then
-          label=$(printf '%-16s  agent  %s' "${names[$x]}" "${extra[$x]}")
-        else
-          label=$(printf '%-16s  %s' "${names[$x]}" "${extra[$x]}")
-        fi
-      else
-        label=$(printf '%-16s  %s' "${names[$x]}" "${paths[$x]}")
-      fi
       if [ "$x" -eq "$i" ]; then
-        printf '  ❯ %s\n' "$(clip "$label")"
+        hex_fg "$accent"
+        printf '  ❯ '
       else
-        printf '    %s\n' "$(clip "$label")"
+        hex_fg "$fg"
+        printf '    '
+      fi
+      if [ "$t" = k ]; then
+        printf '%s' "$(pad "${names[$x]}" 18)"
+        if [ "${flags[$x]}" = 1 ]; then
+          printf '  '
+          hex_fg "$accent"
+          printf 'agent'
+          rst
+          if [ "$x" -eq "$i" ]; then hex_fg "$accent"; else hex_fg "$fg"; fi
+          printf '  %s' "$(clip "${extra[$x]}")"
+        else
+          printf '  %s' "$(clip "${extra[$x]}")"
+        fi
+        rst
+        printf '\n'
+      elif [ "$t" = m ]; then
+        # label | target | session | on/off (on = accent)
+        printf '%s  %s  %s  ' \
+          "$(pad "${names[$x]}" 20)" \
+          "$(pad "${paths[$x]}" 18)" \
+          "$(pad "${extra[$x]}" 8)"
+        if [ "${enabled[$x]:-}" = on ]; then
+          hex_fg "$accent"
+          printf 'on'
+        else
+          hex_fg "$fg"
+          printf '%s' "${enabled[$x]:-off}"
+        fi
+        rst
+        printf '\n'
+      else
+        # host
+        printf '%s  %s' "$(pad "${names[$x]}" 20)" "$(clip "${paths[$x]}")"
+        rst
+        printf '\n'
       fi
     fi
     x=$((x + 1))
@@ -246,48 +412,365 @@ draw() {
   printf '\033[J'
 }
 
-# Re-parse keys so fingerprint+agent are both available.
 # extra = in_agent for k, identity for h
 # paths = private path for k, user@host for h
 # names = key file or Host alias
 
+# Next slot for this SSH target. Prints: LABEL<TAB>SESSION<TAB>N
+# N=1 -> first connection (label=host, session=default)
+# N>=2 -> label "host N", remote-session N
+next_machine_slot() {
+  local target=$1
+  "$HERDR_BIN" machine list --json 2>/dev/null | python3 -c '
+import json, re, sys
+host = sys.argv[1]
+try:
+    rows = json.load(sys.stdin)
+except Exception:
+    rows = []
+nums = []
+pat = re.compile(r"^" + re.escape(host) + r"(?:\s+(\d+))?$")
+for m in rows or []:
+    if (m.get("target") or "") != host:
+        continue
+    label = (m.get("label") or "").strip()
+    sess = (m.get("session") or "default").strip()
+    lm = pat.match(label)
+    if lm:
+        nums.append(int(lm.group(1) or "1"))
+    elif label == host:
+        nums.append(1)
+    if sess == "default" or sess == "1":
+        nums.append(1)
+    elif sess.isdigit():
+        nums.append(int(sess))
+    else:
+        nums.append(1)
+n = (max(nums) + 1) if nums else 1
+if n <= 1:
+    print("%s\tdefault\t1" % host)
+else:
+    print("%s %d\t%d\t%d" % (host, n, n, n))
+' "$target"
+}
+
+# Sets probe_err on failure (one-line ssh stderr or a short reason).
+ssh_probe() {
+  local host=$1
+  local ident=$2
+  local errfile rc
+  errfile=$(mktemp)
+  probe_err=""
+  ssh_log "probe start host=$host"
+  # Disable ControlMaster so a stuck mux socket cannot hang the popup.
+  # ConnectTimeout keeps dead hosts from blocking the UI.
+  if [ -n "$ident" ] && [ -f "$ident" ]; then
+    ssh -o BatchMode=yes -o ConnectTimeout=3 -o ConnectionAttempts=1 \
+      -o ControlMaster=no -o ControlPath=none \
+      -i "$ident" -o IdentitiesOnly=yes \
+      -o StrictHostKeyChecking=accept-new \
+      "$host" true >/dev/null 2>"$errfile"
+    rc=$?
+  else
+    ssh -o BatchMode=yes -o ConnectTimeout=3 -o ConnectionAttempts=1 \
+      -o ControlMaster=no -o ControlPath=none \
+      -o StrictHostKeyChecking=accept-new \
+      "$host" true >/dev/null 2>"$errfile"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
+    rm -f "$errfile"
+    ssh_log "probe ok host=$host"
+    return 0
+  fi
+  probe_err=$(tr '\n' ' ' <"$errfile" | sed 's/[[:space:]]*$//')
+  rm -f "$errfile"
+  [ -n "$probe_err" ] || probe_err="ssh exit $rc (timeout or unreachable)"
+  ssh_log "probe fail host=$host rc=$rc err=$probe_err"
+  return 1
+}
+
+# Full-screen error the user must dismiss — easy to miss a one-line status.
+show_fail() {
+  local title=$1
+  local body=$2
+  ssh_log "fail ui: $title | $body"
+  printf '\033[?25h\033[H\033[J'
+  hex_fg "$red"
+  printf '\n  X  %s\n\n' "$title"
+  rst
+  hex_fg "$fg"
+  printf '%s\n' "$body" | fold -s -w $((maxw > 20 ? maxw : 40)) | sed 's/^/  /'
+  printf '\n'
+  rst
+  printf '  Press any key to go back...\n'
+  IFS= read -r -n 1 _ || true
+  # Drop error chrome so the menu redraw is clean (no leftover status lines).
+  status=""
+  detail=""
+  status_err=0
+  printf '\033[?25l\033[H\033[J'
+}
+
+# Always add a machine connection. First use is "host" / default session;
+# further Enters create "host 2", "host 3", ... with matching remote sessions.
+open_machine() {
+  local host=$1
+  local slot label session n
+  slot=$(next_machine_slot "$host") || slot=$(printf '%s\tdefault\t1' "$host")
+  label=$(printf '%s' "$slot" | cut -f1)
+  session=$(printf '%s' "$slot" | cut -f2)
+  n=$(printf '%s' "$slot" | cut -f3)
+  [ -n "$label" ] || label=$host
+  [ -n "$session" ] || session=default
+  [ -n "$n" ] || n=1
+
+  status="adding machine ${label}..."
+  detail="herdr machine add (connection ${n})"
+  draw
+  restore_tty
+  printf '\033[H\033[J'
+  printf 'Adding Herdr machine\n'
+  printf '  label:   %s\n' "$label"
+  printf '  target:  %s\n' "$host"
+  printf '  session: %s\n\n' "$session"
+  if [ "$session" = default ] || [ "$n" = 1 ]; then
+    if "$HERDR_BIN" machine add --label "$label" "$host"; then
+      ssh_log "machine add ok host=$host label=$label session=default n=$n"
+      raw_tty
+      return 0
+    fi
+  else
+    if "$HERDR_BIN" machine add --label "$label" --remote-session "$session" "$host"; then
+      ssh_log "machine add ok host=$host label=$label session=$session n=$n"
+      raw_tty
+      return 0
+    fi
+  fi
+  open_err="herdr machine add failed for ${label} (setup rejected or unreachable)"
+  ssh_log "machine add failed host=$host label=$label session=$session"
+  raw_tty
+  return 1
+}
+
 do_add() {
   local key=${paths[$i]}
-  [ -f "$key" ] || { status="missing $key"; return; }
+  local name=${names[$i]}
+  ssh_log "key enter name=$name"
+  detail=""
+  status_err=0
+  [ -f "$key" ] || {
+    status="missing $key"
+    detail="private key file not found"
+    status_err=1
+    return
+  }
   if ssh-add --apple-use-keychain "$key" >/dev/null 2>&1 \
     || ssh-add "$key" >/dev/null 2>&1; then
     active_key=$key
     flags[$i]=1
-    status="loaded ${names[$i]}"
+    status="loaded $name"
+    detail=""
+    status_err=0
   else
-    status="could not ssh-add ${names[$i]} (passphrase?)"
+    status="could not ssh-add $name"
+    detail="passphrase required or agent rejected the key"
+    status_err=1
   fi
 }
 
 do_connect() {
   local host=${names[$i]}
   local ident=$active_key
+  probe_err=""
+  open_err=""
   [ -z "$ident" ] && ident=${extra[$i]}
-  printf '\033[H\033[J'
-  if [ -n "$ident" ] && [ -f "$ident" ]; then
-    exec ssh -t -i "$ident" -o IdentitiesOnly=yes "$host"
+  ssh_log "host enter host=$host ident=${ident:-}"
+  status="checking ${host}..."
+  detail="ssh probe (3s timeout)"
+  status_err=0
+  draw
+  if ! ssh_probe "$host" "$ident"; then
+    show_fail \
+      "could not connect to ${host}" \
+      "${probe_err}. Start the host/service and press Enter again."
+    return
   fi
-  exec ssh -t "$host"
+  status="opening machine ${host}..."
+  detail="herdr machine (sidebar)"
+  status_err=0
+  draw
+  if ! open_machine "$host"; then
+    show_fail \
+      "could not open machine ${host}" \
+      "${open_err:-herdr machine add/enable failed}"
+    return
+  fi
+  ssh_log "done machine host=$host"
+  # Stay open and refresh so the new machine appears under machines.
+  status="added machine for ${host}"
+  detail="listed under machines — d removes"
+  status_err=0
+  load_rows || true
+  first_sel
 }
+
+do_remove_machine() {
+  local label id ans
+  [ "${types[$i]}" = m ] || {
+    status="select a machine row to remove"
+    detail="j/k to machines, then d"
+    status_err=1
+    return
+  }
+  label=${names[$i]}
+  id=${flags[$i]}
+  [ -n "$id" ] || {
+    status="missing machine id"
+    status_err=1
+    return
+  }
+  ssh_log "remove ask label=$label id=$id"
+  printf '\033[?25h\033[H\033[J'
+  hex_fg "$red"
+  printf '\n  Remove machine?\n\n'
+  rst
+  printf '  label:   %s\n' "$label"
+  printf '  target:  %s\n' "${paths[$i]}"
+  printf '  session: %s\n' "${extra[$i]}"
+  printf '  id:      %s\n\n' "$id"
+  printf '  [y] remove   [c] cancel\n'
+  ans=
+  IFS= read -r -n 1 ans || ans=c
+  printf '\033[?25l'
+  case $ans in
+    y|Y)
+      if "$HERDR_BIN" machine remove "$id" >/dev/null 2>&1; then
+        ssh_log "remove ok id=$id"
+        status="removed ${label}"
+        detail=""
+        status_err=0
+        load_rows || true
+        if [ "$n" -le 0 ]; then
+          i=0
+        elif [ "$i" -ge "$n" ]; then
+          i=$((n - 1))
+        fi
+        case ${types[$i]:-} in
+          k|h|m) ;;
+          *) first_sel ;;
+        esac
+      else
+        show_fail "could not remove ${label}" "herdr machine remove failed for $id"
+      fi
+      ;;
+    *)
+      status=""
+      detail=""
+      status_err=0
+      ;;
+  esac
+}
+
+is_enter() {
+  # Enter is often empty under read -n 1, or \n / \r.
+  [ -z "$1" ] || [ "$1" = "$(printf '\n')" ] || [ "$1" = "$(printf '\r')" ]
+}
+
+# Enable SGR mouse (click to select).
+mouse_on() { printf '\033[?1000h\033[?1002h\033[?1006h'; }
+mouse_off() { printf '\033[?1006l\033[?1002l\033[?1000l'; }
+trap 'mouse_off; printf "\033[?25h"; [ -n "$save_tty" ] && stty "$save_tty"' EXIT
+mouse_on
+
+# Read one UI action into ACTION / MOUSE_Y
+# ACTION: up|down|enter|quit|remove|click|none
+read_action() {
+  local k c seq btn y final
+  ACTION=none
+  MOUSE_Y=0
+  IFS= read -r -n 1 k || { ACTION=quit; return; }
+  case $k in
+    j) ACTION=down; return ;;
+    k) ACTION=up; return ;;
+    q) ACTION=quit; return ;;
+    d) ACTION=remove; return ;;
+  esac
+  if is_enter "$k"; then
+    ACTION=enter
+    return
+  fi
+  if [ "$k" != "$(printf '\033')" ]; then
+    ACTION=none
+    return
+  fi
+  if ! IFS= read -r -n 1 -t 1 c; then
+    ACTION=quit
+    return
+  fi
+  if [ "$c" != '[' ]; then
+    ACTION=none
+    return
+  fi
+  if ! IFS= read -r -n 1 -t 1 c; then
+    ACTION=quit
+    return
+  fi
+  # SGR mouse: \033[<btn;col;rowM  (press) or ...m (release)
+  if [ "$c" = '<' ]; then
+    seq=""
+    final=
+    while IFS= read -r -n 1 -t 1 c; do
+      case $c in
+        M|m) final=$c; break ;;
+        *) seq="${seq}${c}" ;;
+      esac
+      [ ${#seq} -gt 24 ] && break
+    done
+    # seq = "0;12;5"
+    y=$(printf '%s' "$seq" | cut -d';' -f3)
+    if [ "$final" = M ] && [ -n "$y" ]; then
+      MOUSE_Y=$y
+      ACTION=click
+      return
+    fi
+    ACTION=none
+    return
+  fi
+  case $c in
+    A) ACTION=up; return ;;
+    B) ACTION=down; return ;;
+  esac
+  ACTION=none
+}
+
+ssh_log "start hosts=$n bin=$HERDR_BIN"
 
 while true; do
   draw
-  IFS= read -r -n 1 key || key=
-  if [ "$key" = j ]; then
-    move 1
-  elif [ "$key" = k ]; then
-    move -1
-  elif [ "$key" = "$(printf '\033')" ] || [ "$key" = q ]; then
-    exit 0
-  else
-    case ${types[$i]} in
-      k) do_add ;;
-      h) do_connect ;;
-    esac
-  fi
+  read_action
+  case $ACTION in
+    down) move 1 ;;
+    up) move -1 ;;
+    quit) exit 0 ;;
+    remove) do_remove_machine ;;
+    enter)
+      ssh_log "keypress sel=${types[$i]}:${names[$i]} enter"
+      case ${types[$i]} in
+        k) do_add ;;
+        h) do_connect ;;
+        m)
+          status="${names[$i]}"
+          detail="target ${paths[$i]} · press d to remove"
+          status_err=0
+          ;;
+      esac
+      ;;
+    click)
+      hit=$(row_at_y "$MOUSE_Y" || true)
+      if [ -n "${hit:-}" ]; then
+        i=$hit
+      fi
+      ;;
+  esac
 done
