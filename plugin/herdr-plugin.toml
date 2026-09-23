@@ -1,8 +1,21 @@
 id = "muherdr.notify"
 name = "MμHerdr Notify"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.9.0"
-description = "Desktop banners with the Herdr ram when an agent is blocked or done. Optional Slack and Telegram."
+description = """
+Alerts when a Herdr agent needs you or finishes work.
+
+Triggers on pane.agent_status_changed for blocked and done (not working/idle).
+
+Channels (any mix):
+• System desktop banners with the Herdr ram icon — macOS (terminal-notifier / MμHerdr.app) and Linux (notify-send)
+• Slack incoming webhooks
+• Telegram bot messages (BotFather token + chat id)
+
+Config: notify.toml (system/slack/telegram flags + URLs/tokens) or env SLACK_WEBHOOK_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
+
+Messages include workspace label and agent name. Pair with ui.toast.delivery = \"herdr\" so Herdr keeps in-app toasts and this plugin owns OS banners (no duplicate generic system notification).
+"""
 platforms = ["linux", "macos"]
 
 [[events]]
