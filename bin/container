@@ -416,6 +416,10 @@ draw() {
   printf 'Space'
   rst
   printf ' expand  '
+  hex_fg "$accent"
+  printf 'd'
+  rst
+  printf ' stop  '
   hex_fg "$red"
   printf 'Esc'
   rst
@@ -474,7 +478,7 @@ draw() {
   printf '\033[J'
 }
 
-# Sets ACTION: enter | expand | up | down | quit | none
+# Sets ACTION: enter | expand | stop | up | down | quit | none
 read_action() {
   local k c seq
   ACTION=none
@@ -483,6 +487,7 @@ read_action() {
     j) ACTION=down; return ;;
     k) ACTION=up; return ;;
     q) ACTION=quit; return ;;
+    d) ACTION=stop; return ;;
     ' ') ACTION=expand; return ;;
   esac
   if [ -z "$k" ] || [ "$k" = "$(printf '\n')" ] || [ "$k" = "$(printf '\r')" ]; then
@@ -566,7 +571,7 @@ is_running() {
 start_container() {
   local eng=$1
   local name=$2
-  local errfile rc
+  local errfile rc tries
   errfile=$(mktemp)
   ctr_log "start begin eng=$eng name=$name"
   if is_running "$eng" "$name"; then
@@ -579,24 +584,210 @@ start_container() {
   if [ "$rc" -ne 0 ]; then
     start_err=$(tr '\n' ' ' <"$errfile" | sed 's/[[:space:]]*$//')
     rm -f "$errfile"
-    [ -n "$start_err" ] || start_err="$eng start failed (exit $rc)"
+    [ -n "$start_err" ] || start_err="start failed (exit $rc)"
     ctr_log "start fail name=$name err=$start_err"
     return 1
   fi
   rm -f "$errfile"
   # Wait briefly until the runtime reports running (exec needs a live PID 1).
-  local n=0
-  while [ "$n" -lt 20 ]; do
+  tries=0
+  while [ "$tries" -lt 20 ]; do
     if is_running "$eng" "$name"; then
       ctr_log "start ok name=$name"
       return 0
     fi
     sleep 0.25
-    n=$((n + 1))
+    tries=$((tries + 1))
   done
   start_err="started but not running yet"
   ctr_log "start timeout name=$name"
   return 1
+}
+
+stop_container() {
+  local eng=$1
+  local name=$2
+  local errfile rc tries
+  errfile=$(mktemp)
+  ctr_log "stop begin eng=$eng name=$name"
+  if ! is_running "$eng" "$name"; then
+    rm -f "$errfile"
+    ctr_log "already stopped name=$name"
+    return 0
+  fi
+  "$eng" stop "$name" >"$errfile" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    stop_err=$(tr '\n' ' ' <"$errfile" | sed 's/[[:space:]]*$//')
+    rm -f "$errfile"
+    [ -n "$stop_err" ] || stop_err="stop failed (exit $rc)"
+    ctr_log "stop fail name=$name err=$stop_err"
+    return 1
+  fi
+  rm -f "$errfile"
+  tries=0
+  while [ "$tries" -lt 20 ]; do
+    if ! is_running "$eng" "$name"; then
+      ctr_log "stop ok name=$name"
+      return 0
+    fi
+    sleep 0.25
+    tries=$((tries + 1))
+  done
+  stop_err="stop issued but still running"
+  ctr_log "stop timeout name=$name"
+  return 1
+}
+
+remove_container() {
+  local eng=$1
+  local name=$2
+  local errfile rc
+  errfile=$(mktemp)
+  ctr_log "rm begin eng=$eng name=$name"
+  # Force remove so a stuck container can still be dropped.
+  "$eng" rm -f "$name" >"$errfile" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    stop_err=$(tr '\n' ' ' <"$errfile" | sed 's/[[:space:]]*$//')
+    rm -f "$errfile"
+    [ -n "$stop_err" ] || stop_err="rm failed (exit $rc)"
+    ctr_log "rm fail name=$name err=$stop_err"
+    return 1
+  fi
+  rm -f "$errfile"
+  ctr_log "rm ok name=$name"
+  return 0
+}
+
+# Drop row $1 from parallel arrays (types/names/…/expanded).
+drop_row() {
+  local idx=$1
+  local x
+  local nt=() ne=() nn=() ns=() ni=() nv=() nd=() nx=()
+  x=0
+  while [ "$x" -lt "$n" ]; do
+    if [ "$x" -ne "$idx" ]; then
+      nt+=("${types[$x]}")
+      ne+=("${engines[$x]}")
+      nn+=("${names[$x]}")
+      ns+=("${states[$x]}")
+      ni+=("${images[$x]}")
+      nv+=("${volumes[$x]}")
+      nd+=("${dirs[$x]}")
+      nx+=("${expanded[$x]:-0}")
+    fi
+    x=$((x + 1))
+  done
+  types=("${nt[@]}")
+  engines=("${ne[@]}")
+  names=("${nn[@]}")
+  states=("${ns[@]}")
+  images=("${ni[@]}")
+  volumes=("${nv[@]}")
+  dirs=("${nd[@]}")
+  expanded=("${nx[@]}")
+  n=${#types[@]}
+  if [ "$n" -le 0 ]; then
+    i=0
+    types=("x")
+    engines=("(no containers left)")
+    names=("")
+    states=("")
+    images=("")
+    volumes=("")
+    dirs=("")
+    expanded=("0")
+    n=1
+    i=0
+    return
+  fi
+  if [ "$i" -ge "$n" ]; then
+    i=$((n - 1))
+  fi
+  case ${types[$i]:-} in
+    c) ;;
+    *) first_sel ;;
+  esac
+}
+
+do_stop() {
+  local t=${types[$i]}
+  local eng=${engines[$i]}
+  local name=${names[$i]}
+  local sn ans running=0
+  local action=stop
+  stop_err=""
+  case $t in
+    c) ;;
+    *)
+      status="select a container first"
+      detail="j/k then d to stop"
+      status_err=1
+      return
+      ;;
+  esac
+  sn=$(short_name "$name")
+  if is_running "$eng" "$name"; then
+    running=1
+    action=stop
+  else
+    action=remove
+  fi
+  ctr_log "stop ask name=$name action=$action"
+  printf '\033[?25h\033[H\033[J'
+  hex_fg "$red"
+  if [ "$action" = stop ]; then
+    printf '\n  Stop container?\n\n'
+  else
+    printf '\n  Remove stopped container?\n\n'
+  fi
+  rst
+  printf '  name:  %s\n' "$sn"
+  printf '  full:  %s\n' "$name"
+  printf '  state: %s\n\n' "${states[$i]}"
+  if [ "$action" = stop ]; then
+    printf '  [y] stop   [c] cancel\n'
+  else
+    printf '  [y] remove   [c] cancel\n'
+  fi
+  ans=
+  IFS= read -r -n 1 ans || ans=c
+  printf '\033[?25l'
+  case $ans in
+    y|Y)
+      status="stopping ${sn}..."
+      detail=""
+      status_err=0
+      if [ "$action" = stop ]; then
+        draw
+        if stop_container "$eng" "$name"; then
+          states[$i]=exited
+          status="stopped ${sn}"
+          detail="Enter starts again · d removes when stopped"
+          status_err=0
+        else
+          show_fail "could not stop ${sn}" "${stop_err}"
+        fi
+      else
+        status="removing ${sn}..."
+        draw
+        if remove_container "$eng" "$name"; then
+          status="removed ${sn}"
+          detail=""
+          status_err=0
+          drop_row "$i"
+        else
+          show_fail "could not remove ${sn}" "${stop_err}"
+        fi
+      fi
+      ;;
+    *)
+      status=""
+      detail=""
+      status_err=0
+      ;;
+  esac
 }
 
 open_container_workspace() {
@@ -687,6 +878,7 @@ while true; do
     up) move -1 ;;
     quit) exit 0 ;;
     expand) toggle_expand ;;
+    stop) do_stop ;;
     enter) do_enter ;;
   esac
 done

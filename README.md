@@ -118,7 +118,7 @@ Prefix `e`. Popup title: **SSH**. OpenSSH only (not `herdr machine`).
 
 Prefix `p`. Popup title: **Containers**. Uses whichever runtime is available (`docker`, then `podman`, then `nerdctl`) — same UI either way.
 
-`j`/`k` move. Enter starts the container (if stopped) and opens a workspace shell. Space expands/collapses details (`state`, `image`, `volume`, `dir`). Esc cancels. Failures show a full-screen error.
+`j`/`k` move. Enter starts the container (if stopped) and opens a workspace shell. Space expands/collapses details (`state`, `image`, `volume`, `dir`). `d` stops a running container, or removes it if already stopped (`y` confirm, `c` cancel). Esc cancels. Failures show a full-screen error.
 
 ## Navigate
 
