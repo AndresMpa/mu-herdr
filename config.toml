@@ -63,7 +63,7 @@ rows = [
 ]
 
 # herdr = in-app toast only. OS banners come from plugin/notify.sh (ram icon).
-# system would duplicate a second banner with Herdr's default icon.
+# system would post a second OS banner without the ram.
 [ui.toast]
 delivery = "herdr"
 delay_seconds = 1
