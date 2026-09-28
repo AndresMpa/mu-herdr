@@ -112,13 +112,13 @@ Prefix `e`. Popup title: **SSH**. OpenSSH only (not `herdr machine`).
 | host (`Host` in `~/.ssh/config` + `Include`, no `*`/`?`) | probe SSH, then `herdr machine add` — first is `host`, next Enters add `host 2`, `host 3`, … |
 | machine (saved Herdr profile) | `d` removes (`y` confirm, `c` cancel) |
 
-`j`/`k` or click to select, Esc cancels. Passphrases stay in the popup. Private keys are not printed.
+`j`/`k` or click to select. `/` filters keys, hosts, and machines (Enter keeps, Esc clears). Esc cancels (or clears an active filter first). Passphrases stay in the popup. Private keys are not printed.
 
 ## Containers
 
 Prefix `p`. Popup title: **Containers**. Uses whichever runtime is available (`docker`, then `podman`, then `nerdctl`) — same UI either way.
 
-`j`/`k` move. Enter starts the container (if stopped) and opens a workspace shell. Space expands/collapses details (`state`, `image`, `volume`, `dir`). `d` stops a running container, or removes it if already stopped (`y` confirm, `c` cancel). Esc cancels. Failures show a full-screen error.
+`j`/`k` move. List nests Compose/Podman leaf deps under the service that needs them (`· postgres` under `djangovscode`). Enter starts the container and its `depends_on` chain (or **restarts** it if already running), then opens a workspace shell. Space expands details (`needs`, `state`, `image`, `volume`, `dir`). `/` filters by name, image, state, volume, dir, or deps. `d` stops a running container, or removes it if already stopped (`y`/`c`). Esc cancels (or clears an active filter first).
 
 ## Navigate
 
