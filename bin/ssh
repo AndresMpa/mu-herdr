@@ -252,21 +252,83 @@ row_y=()
 load_rows || { echo "could not list SSH keys/hosts/machines" >&2; exit 1; }
 
 i=0
+query=""
+searching=0
+
+active_key=""
+status=""
+detail=""
+status_err=0
+
+# Header occupies this many lines before the list (for mouse y mapping).
+HDR_LINES=4
+
+lc() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+# Case-insensitive match on name / path / extra / enabled.
+row_matches() {
+  local idx=$1 q hay
+  case ${types[$idx]:-} in
+    k|h|m) ;;
+    s|x)
+      [ -z "$query" ] && return 0
+      return 1
+      ;;
+    *) return 1 ;;
+  esac
+  [ -z "$query" ] && return 0
+  q=$(lc "$query")
+  hay=$(lc "${names[$idx]} ${paths[$idx]} ${extra[$idx]} ${enabled[$idx]:-}")
+  case $hay in
+    *"$q"*) return 0 ;;
+  esac
+  return 1
+}
+
+visible_count() {
+  local x=0 c=0
+  while [ "$x" -lt "$n" ]; do
+    if row_matches "$x"; then
+      c=$((c + 1))
+    fi
+    x=$((x + 1))
+  done
+  printf '%s' "$c"
+}
+
 first_sel() {
   local x=0
   while [ "$x" -lt "$n" ]; do
     case ${types[$x]} in
-      k|h|m) i=$x; return ;;
+      k|h|m)
+        if row_matches "$x"; then
+          i=$x
+          return
+        fi
+        ;;
     esac
     x=$((x + 1))
   done
+  x=0
+  while [ "$x" -lt "$n" ]; do
+    if row_matches "$x"; then
+      i=$x
+      return
+    fi
+    x=$((x + 1))
+  done
+  i=0
 }
 first_sel
 
 move() {
   local dir=$1
   local x=$i
-  while true; do
+  local steps=0
+  [ "$n" -gt 0 ] || return
+  while [ "$steps" -lt "$n" ]; do
     x=$((x + dir))
     if [ "$x" -lt 0 ]; then
       x=$((n - 1))
@@ -275,9 +337,14 @@ move() {
       x=0
     fi
     case ${types[$x]} in
-      k|h|m) i=$x; return ;;
+      k|h|m)
+        if row_matches "$x"; then
+          i=$x
+          return
+        fi
+        ;;
     esac
-    [ "$x" -eq "$i" ] && return
+    steps=$((steps + 1))
   done
 }
 
@@ -288,7 +355,12 @@ row_at_y() {
   while [ "$x" -lt "$n" ]; do
     if [ "${row_y[$x]:-}" = "$y" ]; then
       case ${types[$x]} in
-        k|h|m) printf '%s' "$x"; return 0 ;;
+        k|h|m)
+          if row_matches "$x"; then
+            printf '%s' "$x"
+            return 0
+          fi
+          ;;
       esac
     fi
     x=$((x + 1))
@@ -296,25 +368,26 @@ row_at_y() {
   return 1
 }
 
-active_key=""
-status=""
-detail=""
-status_err=0
-
-# Header occupies this many lines before the list (for mouse y mapping).
-HDR_LINES=4
-
 draw() {
-  local x t label sy
+  local x t label sy shown=0
   row_y=()
   sy=$HDR_LINES
-  printf '\033[?25l\033[H\033[J'
+  if [ "$searching" = 1 ]; then
+    printf '\033[?25h'
+  else
+    printf '\033[?25l'
+  fi
+  printf '\033[H\033[J'
   printf '\033[K'
   printf '  MμHerdr ssh  '
   hex_fg "$accent"
   printf 'j/k'
   rst
   printf '  Enter  '
+  hex_fg "$accent"
+  printf '/'
+  rst
+  printf ' find  '
   hex_fg "$accent"
   printf 'd'
   rst
@@ -330,7 +403,11 @@ draw() {
     printf '\n'
   fi
   printf '\033[K'
-  if [ -n "$status" ]; then
+  if [ "$searching" = 1 ]; then
+    hex_fg "$accent"
+    printf '  /%s█\n' "$(clip "$query")"
+    rst
+  elif [ -n "$status" ]; then
     if [ "$status_err" = 1 ]; then
       hex_fg "$red"
     else
@@ -338,19 +415,37 @@ draw() {
     fi
     printf '  %s\n' "$(clip "$status")"
     rst
+  elif [ -n "$query" ]; then
+    hex_fg "$accent"
+    printf '  /%s\n' "$(clip "$query")"
+    rst
   else
     printf '\n'
   fi
   printf '\033[K'
-  if [ -n "$detail" ]; then
+  if [ "$searching" = 1 ]; then
+    hex_fg "$fg"
+    printf '  type to filter · Enter done · Esc clear\n'
+    rst
+  elif [ -n "$detail" ]; then
     hex_fg "$fg"
     printf '  %s\n' "$(clip "$detail")"
+    rst
+  elif [ -n "$query" ]; then
+    hex_fg "$fg"
+    printf '  %s match(es) · / edit · Esc clears filter\n' "$(visible_count)"
     rst
   else
     printf '\n'
   fi
   x=0
   while [ "$x" -lt "$n" ]; do
+    if ! row_matches "$x"; then
+      row_y[$x]=""
+      x=$((x + 1))
+      continue
+    fi
+    shown=$((shown + 1))
     t=${types[$x]}
     sy=$((sy + 1))
     row_y[$x]=$sy
@@ -409,7 +504,76 @@ draw() {
     fi
     x=$((x + 1))
   done
+  if [ "$shown" -eq 0 ]; then
+    printf '\033[K'
+    hex_fg "$fg"
+    if [ -n "$query" ]; then
+      printf '    (no ssh rows match /%s)\n' "$(clip "$query")"
+    else
+      printf '    (nothing to show)\n'
+    fi
+    rst
+  fi
   printf '\033[J'
+}
+
+# Live filter after /. Enter keeps query; Esc clears it.
+do_search() {
+  local k c seq
+  searching=1
+  status=""
+  detail=""
+  status_err=0
+  mouse_off
+  while true; do
+    first_sel
+    draw
+    IFS= read -r -n 1 k || break
+    if is_enter "$k"; then
+      break
+    fi
+    if [ "$k" = "$(printf '\177')" ] || [ "$k" = "$(printf '\b')" ]; then
+      query=${query%?}
+      continue
+    fi
+    if [ "$k" = "$(printf '\033')" ]; then
+      seq=""
+      if IFS= read -r -n 1 -t 0.05 c; then
+        seq=$c
+        if [ "$c" = '[' ]; then
+          while IFS= read -r -n 1 -t 0.05 c; do
+            seq="${seq}${c}"
+            case $c in
+              A|B|C|D|M|m|u|'~'|z|Z) break ;;
+            esac
+            [ ${#seq} -gt 30 ] && break
+          done
+        fi
+        continue
+      fi
+      query=""
+      break
+    fi
+    case $k in
+      [[:cntrl:]]) continue ;;
+    esac
+    query="${query}${k}"
+  done
+  searching=0
+  first_sel
+  status=""
+  detail=""
+  status_err=0
+  printf '\033[?25l'
+  mouse_on
+}
+
+clear_filter() {
+  query=""
+  first_sel
+  status=""
+  detail=""
+  status_err=0
 }
 
 # extra = in_agent for k, identity for h
@@ -684,7 +848,7 @@ trap 'mouse_off; printf "\033[?25h"; [ -n "$save_tty" ] && stty "$save_tty"' EXI
 mouse_on
 
 # Read one UI action into ACTION / MOUSE_Y
-# ACTION: up|down|enter|quit|remove|click|none
+# ACTION: up|down|enter|quit|remove|search|click|none
 read_action() {
   local k c seq btn y final
   ACTION=none
@@ -695,6 +859,7 @@ read_action() {
     k) ACTION=up; return ;;
     q) ACTION=quit; return ;;
     d) ACTION=remove; return ;;
+    /) ACTION=search; return ;;
   esac
   if is_enter "$k"; then
     ACTION=enter
@@ -705,7 +870,13 @@ read_action() {
     return
   fi
   if ! IFS= read -r -n 1 -t 1 c; then
-    ACTION=quit
+    # Bare Esc: clear filter first, else quit.
+    if [ -n "$query" ]; then
+      clear_filter
+      ACTION=none
+    else
+      ACTION=quit
+    fi
     return
   fi
   if [ "$c" != '[' ]; then
@@ -713,7 +884,12 @@ read_action() {
     return
   fi
   if ! IFS= read -r -n 1 -t 1 c; then
-    ACTION=quit
+    if [ -n "$query" ]; then
+      clear_filter
+      ACTION=none
+    else
+      ACTION=quit
+    fi
     return
   fi
   # SGR mouse: \033[<btn;col;rowM  (press) or ...m (release)
@@ -754,6 +930,7 @@ while true; do
     up) move -1 ;;
     quit) exit 0 ;;
     remove) do_remove_machine ;;
+    search) do_search ;;
     enter)
       ssh_log "keypress sel=${types[$i]}:${names[$i]} enter"
       case ${types[$i]} in
