@@ -102,17 +102,24 @@ def norm_state(raw):
         return "running"
     return s.split()[0] if s.split() else "unknown"
 
-def meta_for(eng, name):
-    """volume + dir from inspect (docker + podman). TSV-safe."""
-    raw = run([eng, "inspect", name])
+def parse_depends(raw):
+    out, seen = [], set()
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        svc = part.split(":", 1)[0].strip()
+        if svc and svc not in seen:
+            seen.add(svc)
+            out.append(svc)
+    return out
+
+def meta_from_info(info):
+    """volume, dir, project, service, deps — from one inspect object. TSV-safe."""
     vol, directory = "-", "-"
-    if not raw:
-        return vol, directory
-    try:
-        data = json.loads(raw)
-        info = data[0] if isinstance(data, list) and data else data
-    except Exception:
-        return vol, directory
+    project, service, deps = "", "", []
+    if not info:
+        return vol, directory, project, service, deps
     cfg = info.get("Config") or {}
     labels = cfg.get("Labels") or {}
     mounts = info.get("Mounts") or []
@@ -152,12 +159,28 @@ def meta_for(eng, name):
         directory = "~" + directory[len(home):]
     directory = directory.replace("\t", " ").replace("\n", " ")
     vol = vol.replace("\t", " ").replace("\n", " ")
-    return vol or "-", directory or "-"
 
-def pick_engine():
-    """One runtime only. Prefer docker, then podman, then nerdctl.
-    Dedupes podman-docker shims via realpath. Must answer to `ps -a`."""
+    project = (
+        labels.get("com.docker.compose.project")
+        or labels.get("io.podman.compose.project")
+        or ""
+    )
+    service = (
+        labels.get("com.docker.compose.service")
+        or labels.get("io.podman.compose.service")
+        or ""
+    )
+    deps = parse_depends(
+        labels.get("com.docker.compose.depends_on")
+        or labels.get("io.podman.compose.depends_on")
+        or ""
+    )
+    return vol or "-", directory or "-", project, service, deps
+
+def found_bins():
+    """Installed runtimes in preference order, deduped by realpath."""
     seen = set()
+    out = []
     for name in ("docker", "podman", "nerdctl"):
         path = shutil.which(name)
         if not path:
@@ -166,18 +189,36 @@ def pick_engine():
         if real in seen:
             continue
         seen.add(real)
-        # Probe: ps must succeed (daemon/socket up).
-        try:
-            subprocess.check_output(
-                [name, "ps", "-a"],
-                text=True,
-                stderr=subprocess.DEVNULL,
-                timeout=8,
-            )
+        out.append(name)
+    return out
+
+def engine_up(name):
+    """True if the runtime answers `ps -a` (daemon/socket up)."""
+    try:
+        subprocess.check_output(
+            [name, "ps", "-a"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=8,
+        )
+        return True
+    except Exception:
+        return False
+
+def pick_engine():
+    """One runtime only. Prefer docker, then podman, then nerdctl."""
+    for name in found_bins():
+        if engine_up(name):
             return name
-        except Exception:
-            continue
     return ""
+
+def empty_engine_msg():
+    """UI hint when no runtime can list containers."""
+    bins = found_bins()
+    if not bins:
+        return "install docker or podman"
+    # CLI present, engine/socket down — any provider (Desktop, Colima, OrbStack, podman machine…).
+    return "start " + " or ".join(bins) + " (daemon not running)"
 
 def list_ps(eng):
     """Return list of dicts with name, state, image, id — docker or podman."""
@@ -246,28 +287,99 @@ def list_ps(eng):
 
 eng = pick_engine()
 if not eng:
-    print("x\tinstall docker or podman\t\t\t\t\t")
+    print("x\t%s\t\t\t\t\t\t\t" % empty_engine_msg())
     sys.exit(0)
 
 # Runtime stays internal (row field eng). No docker/podman label in the UI.
 seen = set()
-rows = []
+basic = []
 for name, state, image, cid in list_ps(eng):
     key = cid or name
     if not name or key in seen or name in seen:
         continue
     seen.add(key)
     seen.add(name)
-    vol, directory = meta_for(eng, name)
-    rows.append((eng, name, state, short_image(image), vol, directory))
+    basic.append((name, state, short_image(image), cid))
 
-if not rows:
-    print("x\t(no containers)\t\t\t\t\t")
+if not basic:
+    print("x\t(no containers)\t\t\t\t\t\t\t")
     sys.exit(0)
 
-rows.sort(key=lambda r: (0 if r[2] == "running" else 1, r[1].lower()))
-for eng, name, state, image, vol, directory in rows:
-    print("c\t%s\t%s\t%s\t%s\t%s\t%s" % (eng, name, state, image, vol, directory))
+# One batch inspect for meta + compose graph.
+names = [b[0] for b in basic]
+raw = run([eng, "inspect", *names], timeout=60)
+try:
+    inspected = json.loads(raw) if raw else []
+except Exception:
+    inspected = []
+if not isinstance(inspected, list):
+    inspected = [inspected] if inspected else []
+by_inspect = {}
+for info in inspected:
+    n = (info.get("Name") or "").lstrip("/")
+    if n:
+        by_inspect[n] = info
+
+rows = []
+for name, state, image, cid in basic:
+    vol, directory, project, service, deps = meta_from_info(by_inspect.get(name))
+    rows.append({
+        "eng": eng,
+        "name": name,
+        "state": state,
+        "image": image,
+        "vol": vol,
+        "dir": directory,
+        "project": project,
+        "service": service,
+        "deps": deps,
+    })
+
+# Nest leaf compose deps under the service that needs them (tree UI).
+svc_row = {}
+for r in rows:
+    if r["project"] and r["service"]:
+        svc_row[(r["project"], r["service"])] = r
+
+children = {}  # parent container name -> [child rows]
+assigned = set()
+for r in rows:
+    if not r["project"] or not r["deps"]:
+        continue
+    for dep_svc in r["deps"]:
+        child = svc_row.get((r["project"], dep_svc))
+        if not child or child["name"] == r["name"]:
+            continue
+        # Only nest pure leaf deps (no outbound depends_on) once.
+        if child["deps"]:
+            continue
+        if child["name"] in assigned:
+            continue
+        children.setdefault(r["name"], []).append(child)
+        assigned.add(child["name"])
+
+roots = [r for r in rows if r["name"] not in assigned]
+roots.sort(key=lambda r: (0 if r["state"] == "running" else 1, r["name"].lower()))
+
+ordered = []
+
+def emit(r, depth):
+    ordered.append((r, depth))
+    kids = children.get(r["name"], [])
+    kids.sort(key=lambda x: (0 if x["state"] == "running" else 1, x["name"].lower()))
+    for k in kids:
+        emit(k, depth + 1)
+
+for r in roots:
+    emit(r, 0)
+
+# c eng name state image vol dir depth deps
+for r, depth in ordered:
+    deps_s = ",".join(r["deps"]).replace("\t", " ")
+    print(
+        "c\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s"
+        % (r["eng"], r["name"], r["state"], r["image"], r["vol"], r["dir"], depth, deps_s)
+    )
 PY
 }
 
@@ -283,6 +395,8 @@ states=()
 images=()
 volumes=()
 dirs=()
+depths=()
+deps=()
 while IFS= read -r line || [ -n "$line" ]; do
   [ -z "$line" ] && continue
   t=$(printf '%s' "$line" | cut -f1)
@@ -292,6 +406,9 @@ while IFS= read -r line || [ -n "$line" ]; do
   img=$(printf '%s' "$line" | cut -f5)
   vol=$(printf '%s' "$line" | cut -f6)
   d=$(printf '%s' "$line" | cut -f7)
+  dep_depth=$(printf '%s' "$line" | cut -f8)
+  dep_list=$(printf '%s' "$line" | cut -f9)
+  [ -n "$dep_depth" ] || dep_depth=0
   types+=("$t")
   engines+=("$e")
   names+=("$n")
@@ -299,6 +416,8 @@ while IFS= read -r line || [ -n "$line" ]; do
   images+=("$img")
   volumes+=("$vol")
   dirs+=("$d")
+  depths+=("$dep_depth")
+  deps+=("$dep_list")
 done <"$TMP"
 rm -f "$TMP"
 
@@ -306,34 +425,8 @@ n=${#types[@]}
 [ "$n" -gt 0 ] || { echo "nothing to show"; exit 1; }
 
 i=0
-first_sel() {
-  local x=0
-  while [ "$x" -lt "$n" ]; do
-    case ${types[$x]} in
-      c) i=$x; return ;;
-    esac
-    x=$((x + 1))
-  done
-}
-first_sel
-
-move() {
-  local dir=$1
-  local x=$i
-  while true; do
-    x=$((x + dir))
-    if [ "$x" -lt 0 ]; then
-      x=$((n - 1))
-    fi
-    if [ "$x" -ge "$n" ]; then
-      x=0
-    fi
-    case ${types[$x]} in
-      c) i=$x; return ;;
-    esac
-    [ "$x" -eq "$i" ] && return
-  done
-}
+query=""
+searching=0
 
 status=""
 detail=""
@@ -355,7 +448,91 @@ short_name() {
     -e 's/[-_][0-9]+$//'
 }
 
+lc() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+# Case-insensitive substring on name / short / state / image / volume / dir.
+row_matches() {
+  local idx=$1 q sn hay
+  case ${types[$idx]:-} in
+    c) ;;
+    x|s)
+      # Keep empty-state rows only when not filtering.
+      [ -z "$query" ] && return 0
+      return 1
+      ;;
+    *) return 1 ;;
+  esac
+  [ -z "$query" ] && return 0
+  q=$(lc "$query")
+  sn=$(short_name "${names[$idx]}")
+  hay=$(lc "${names[$idx]} ${sn} ${states[$idx]} ${images[$idx]} ${volumes[$idx]} ${dirs[$idx]} ${deps[$idx]:-}")
+  case $hay in
+    *"$q"*) return 0 ;;
+  esac
+  return 1
+}
+
+visible_count() {
+  local x=0 c=0
+  while [ "$x" -lt "$n" ]; do
+    if row_matches "$x"; then
+      c=$((c + 1))
+    fi
+    x=$((x + 1))
+  done
+  printf '%s' "$c"
+}
+
+first_sel() {
+  local x=0
+  while [ "$x" -lt "$n" ]; do
+    if [ "${types[$x]}" = c ] && row_matches "$x"; then
+      i=$x
+      return
+    fi
+    x=$((x + 1))
+  done
+  # No selectable match — park on first visible row if any.
+  x=0
+  while [ "$x" -lt "$n" ]; do
+    if row_matches "$x"; then
+      i=$x
+      return
+    fi
+    x=$((x + 1))
+  done
+  i=0
+}
+first_sel
+
+move() {
+  local dir=$1
+  local x=$i
+  local steps=0
+  [ "$n" -gt 0 ] || return
+  while [ "$steps" -lt "$n" ]; do
+    x=$((x + dir))
+    if [ "$x" -lt 0 ]; then
+      x=$((n - 1))
+    fi
+    if [ "$x" -ge "$n" ]; then
+      x=0
+    fi
+    if [ "${types[$x]}" = c ] && row_matches "$x"; then
+      i=$x
+      return
+    fi
+    steps=$((steps + 1))
+  done
+}
+
 toggle_expand() {
+  case ${types[$i]:-} in
+    c) ;;
+    *) return ;;
+  esac
   if [ "${expanded[$i]}" = 1 ]; then
     expanded[$i]=0
   else
@@ -372,8 +549,27 @@ state_color() {
   esac
 }
 
+# Tree prefix: roots flush; leaf deps indented with · 
+tree_pref() {
+  local depth=${1:-0}
+  local mark=$2
+  local d=0
+  local pad="  "
+  while [ "$d" -lt "$depth" ]; do
+    pad="${pad}  "
+    d=$((d + 1))
+  done
+  if [ -n "$mark" ] && [ "$mark" != " " ]; then
+    printf '%s%s ' "$pad" "$mark"
+  elif [ "$depth" -gt 0 ]; then
+    printf '%s· ' "$pad"
+  else
+    printf '%s  ' "$pad"
+  fi
+}
+
 print_name_state() {
-  # $1 prefix, $2 short name, $3 state, $4 name/parens color
+  # $1 tree prefix (already includes mark), $2 short name, $3 state, $4 color
   local pref=$1
   local sn=$2
   local st=$3
@@ -391,12 +587,16 @@ draw_detail_lines() {
   local idx=$1
   local pad=$2
   local st=${states[$idx]}
+  local need=${deps[$idx]:-}
   printf '\033[K%s- state: ' "$pad"
   hex_fg "$(state_color "$st")"
   printf '%s' "$st"
   rst
   printf '\n'
   hex_fg "$fg"
+  if [ -n "$need" ]; then
+    printf '\033[K%s- needs: %s\n' "$pad" "$(clip "$need")"
+  fi
   printf '\033[K%s- image: %s\n' "$pad" "$(clip "${images[$idx]}")"
   printf '\033[K%s- volume: %s\n' "$pad" "$(clip "${volumes[$idx]}")"
   printf '\033[K%s- dir: %s\n' "$pad" "$(clip "${dirs[$idx]}")"
@@ -404,8 +604,13 @@ draw_detail_lines() {
 }
 
 draw() {
-  local x t sn mark
-  printf '\033[?25l\033[H\033[J'
+  local x t sn mark shown=0
+  if [ "$searching" = 1 ]; then
+    printf '\033[?25h'
+  else
+    printf '\033[?25l'
+  fi
+  printf '\033[H\033[J'
   printf '\033[K'
   printf '  MμHerdr containers  '
   hex_fg "$accent"
@@ -417,6 +622,10 @@ draw() {
   rst
   printf ' expand  '
   hex_fg "$accent"
+  printf '/'
+  rst
+  printf ' find  '
+  hex_fg "$accent"
   printf 'd'
   rst
   printf ' stop  '
@@ -425,7 +634,11 @@ draw() {
   rst
   printf ' cancel\n'
   printf '\033[K'
-  if [ -n "$status" ]; then
+  if [ "$searching" = 1 ]; then
+    hex_fg "$accent"
+    printf '  /%s█\n' "$(clip "$query")"
+    rst
+  elif [ -n "$status" ]; then
     if [ "$status_err" = 1 ]; then
       hex_fg "$red"
     else
@@ -433,19 +646,36 @@ draw() {
     fi
     printf '  %s\n' "$(clip "$status")"
     rst
+  elif [ -n "$query" ]; then
+    hex_fg "$accent"
+    printf '  /%s\n' "$(clip "$query")"
+    rst
   else
     printf '\n'
   fi
   printf '\033[K'
-  if [ -n "$detail" ]; then
+  if [ "$searching" = 1 ]; then
+    hex_fg "$fg"
+    printf '  type to filter · Enter done · Esc clear\n'
+    rst
+  elif [ -n "$detail" ]; then
     hex_fg "$fg"
     printf '  %s\n' "$(clip "$detail")"
+    rst
+  elif [ -n "$query" ]; then
+    hex_fg "$fg"
+    printf '  %s match(es) · / edit · Esc clears filter\n' "$(visible_count)"
     rst
   else
     printf '\n'
   fi
   x=0
   while [ "$x" -lt "$n" ]; do
+    if ! row_matches "$x"; then
+      x=$((x + 1))
+      continue
+    fi
+    shown=$((shown + 1))
     t=${types[$x]}
     printf '\033[K'
     if [ "$t" = s ]; then
@@ -458,27 +688,96 @@ draw() {
       rst
     else
       sn=$(short_name "${names[$x]}")
-      # ❯ = selected (Herdr-style). ℹ = expanded details (info).
-      # Parens use the same color as the name (accent when selected).
+      depth=${depths[$x]:-0}
+      # ❯ = selected. ℹ = expanded. Deps nest under parents (compose depends_on).
       if [ "$x" -eq "$i" ] && [ "${expanded[$x]}" = 1 ]; then
-        print_name_state "  ℹ " "$sn" "${states[$x]}" "$accent"
+        print_name_state "$(tree_pref "$depth" "ℹ")" "$sn" "${states[$x]}" "$accent"
       elif [ "$x" -eq "$i" ]; then
-        print_name_state "  ❯ " "$sn" "${states[$x]}" "$accent"
+        print_name_state "$(tree_pref "$depth" "❯")" "$sn" "${states[$x]}" "$accent"
       elif [ "${expanded[$x]}" = 1 ]; then
-        print_name_state "  ℹ " "$sn" "${states[$x]}" "$fg"
+        print_name_state "$(tree_pref "$depth" "ℹ")" "$sn" "${states[$x]}" "$fg"
       else
-        print_name_state "    " "$sn" "${states[$x]}" "$fg"
+        print_name_state "$(tree_pref "$depth" " ")" "$sn" "${states[$x]}" "$fg"
       fi
       if [ "${expanded[$x]}" = 1 ]; then
-        draw_detail_lines "$x" "      "
+        draw_detail_lines "$x" "$(tree_pref "$depth" " " | sed 's/[^ ]/ /g')  "
       fi
     fi
     x=$((x + 1))
   done
+  if [ "$shown" -eq 0 ]; then
+    printf '\033[K'
+    hex_fg "$fg"
+    if [ -n "$query" ]; then
+      printf '    (no containers match /%s)\n' "$(clip "$query")"
+    else
+      printf '    (no containers)\n'
+    fi
+    rst
+  fi
   printf '\033[J'
 }
 
-# Sets ACTION: enter | expand | stop | up | down | quit | none
+# Live filter prompt after /. Enter keeps query; Esc clears it.
+do_search() {
+  local k c seq
+  searching=1
+  status=""
+  detail=""
+  status_err=0
+  while true; do
+    first_sel
+    draw
+    IFS= read -r -n 1 k || break
+    # Enter finishes search and keeps the filter.
+    if [ -z "$k" ] || [ "$k" = "$(printf '\n')" ] || [ "$k" = "$(printf '\r')" ]; then
+      break
+    fi
+    # Backspace / Delete.
+    if [ "$k" = "$(printf '\177')" ] || [ "$k" = "$(printf '\b')" ]; then
+      query=${query%?}
+      continue
+    fi
+    # Esc: bare = clear filter; CSI arrows ignored while typing.
+    if [ "$k" = "$(printf '\033')" ]; then
+      seq=""
+      if IFS= read -r -n 1 -t 0.05 c; then
+        seq=$c
+        if [ "$c" = '[' ]; then
+          while IFS= read -r -n 1 -t 0.05 c; do
+            seq="${seq}${c}"
+            case $c in
+              A|B|C|D|u|'~'|z|Z) break ;;
+            esac
+            [ ${#seq} -gt 30 ] && break
+          done
+        fi
+        continue
+      fi
+      query=""
+      break
+    fi
+    # Printable ASCII only (skip control chars).
+    case $k in
+      [[:cntrl:]]) continue ;;
+    esac
+    query="${query}${k}"
+  done
+  searching=0
+  first_sel
+  if [ -n "$query" ]; then
+    status=""
+    detail=""
+    status_err=0
+  else
+    status=""
+    detail=""
+    status_err=0
+  fi
+  printf '\033[?25l'
+}
+
+# Sets ACTION: enter | expand | stop | search | up | down | quit | none
 read_action() {
   local k c seq
   ACTION=none
@@ -488,6 +787,7 @@ read_action() {
     k) ACTION=up; return ;;
     q) ACTION=quit; return ;;
     d) ACTION=stop; return ;;
+    /) ACTION=search; return ;;
     ' ') ACTION=expand; return ;;
   esac
   if [ -z "$k" ] || [ "$k" = "$(printf '\n')" ] || [ "$k" = "$(printf '\r')" ]; then
@@ -514,11 +814,30 @@ read_action() {
       done
     fi
   else
+    # Bare Esc: clear active filter first, else quit.
+    if [ -n "$query" ]; then
+      query=""
+      first_sel
+      status=""
+      detail=""
+      status_err=0
+      ACTION=none
+      return
+    fi
     ACTION=quit
     return
   fi
   if [ -z "$seq" ] || [ "$seq" = '[' ]; then
-    ACTION=quit
+    if [ -n "$query" ]; then
+      query=""
+      first_sel
+      status=""
+      detail=""
+      status_err=0
+      ACTION=none
+    else
+      ACTION=quit
+    fi
   else
     ACTION=none
   fi
@@ -568,15 +887,168 @@ is_running() {
   return 1
 }
 
+# Mark a container row as $2 state in the on-screen list (by full name).
+mark_state() {
+  local name=$1
+  local st=$2
+  local x=0
+  while [ "$x" -lt "$n" ]; do
+    if [ "${types[$x]:-}" = c ] && [ "${names[$x]}" = "$name" ]; then
+      states[$x]=$st
+    fi
+    x=$((x + 1))
+  done
+}
+
+# Compose/Podman depends_on → start order (deps first, target last). One name per line.
+# No compose labels → just the target.
+resolve_start_order() {
+  local eng=$1
+  local target=$2
+  python3 - "$eng" "$target" <<'PY'
+import json, subprocess, sys
+
+eng, target = sys.argv[1], sys.argv[2]
+
+def run(cmd, timeout=20):
+    try:
+        return subprocess.check_output(
+            cmd, text=True, stderr=subprocess.DEVNULL, timeout=timeout
+        )
+    except Exception:
+        return ""
+
+def parse_depends(raw):
+    # "postgres:service_started:false,redis:service_started:false"
+    out = []
+    seen = set()
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        svc = part.split(":", 1)[0].strip()
+        if svc and svc not in seen:
+            seen.add(svc)
+            out.append(svc)
+    return out
+
+def labels_of(info):
+    return ((info.get("Config") or {}).get("Labels")) or {}
+
+def project_of(labels):
+    return (
+        labels.get("com.docker.compose.project")
+        or labels.get("io.podman.compose.project")
+        or labels.get("com.docker.compose.project.name")
+        or ""
+    )
+
+def service_of(labels):
+    return (
+        labels.get("com.docker.compose.service")
+        or labels.get("io.podman.compose.service")
+        or ""
+    )
+
+def depends_of(labels):
+    return parse_depends(
+        labels.get("com.docker.compose.depends_on")
+        or labels.get("io.podman.compose.depends_on")
+        or ""
+    )
+
+names_out = run([eng, "ps", "-a", "--format", "{{.Names}}"])
+names = []
+for line in names_out.splitlines():
+    for part in line.split(","):
+        n = part.strip().lstrip("/")
+        if n:
+            names.append(n)
+if target not in names:
+    names.append(target)
+if not names:
+    print(target)
+    raise SystemExit(0)
+
+raw = run([eng, "inspect", *names], timeout=60)
+try:
+    data = json.loads(raw) if raw else []
+except Exception:
+    data = []
+if not isinstance(data, list):
+    data = [data] if data else []
+
+index = {}
+by_ps = {}
+for info in data:
+    name = (info.get("Name") or "").lstrip("/")
+    if not name:
+        continue
+    labels = labels_of(info)
+    project = project_of(labels)
+    service = service_of(labels)
+    deps = depends_of(labels)
+    index[name] = {"project": project, "service": service, "deps": deps}
+    if project and service:
+        by_ps.setdefault((project, service), []).append(name)
+
+if target not in index:
+    print(target)
+    raise SystemExit(0)
+
+order = []
+stack = set()
+done = set()
+
+def visit(name):
+    if name in done or name in stack:
+        return
+    stack.add(name)
+    info = index.get(name) or {}
+    project = info.get("project") or ""
+    for dep_svc in info.get("deps") or []:
+        if not project:
+            break
+        for dep_name in by_ps.get((project, dep_svc), []):
+            visit(dep_name)
+    stack.discard(name)
+    done.add(name)
+    order.append(name)
+
+visit(target)
+if target not in order:
+    order.append(target)
+for n in order:
+    print(n)
+PY
+}
+
+# Wait until runtime reports running (exec needs a live PID 1).
+wait_running() {
+  local eng=$1
+  local name=$2
+  local tries=0
+  while [ "$tries" -lt 20 ]; do
+    if is_running "$eng" "$name"; then
+      mark_state "$name" running
+      return 0
+    fi
+    sleep 0.25
+    tries=$((tries + 1))
+  done
+  return 1
+}
+
 start_container() {
   local eng=$1
   local name=$2
-  local errfile rc tries
+  local errfile rc
   errfile=$(mktemp)
   ctr_log "start begin eng=$eng name=$name"
   if is_running "$eng" "$name"; then
     rm -f "$errfile"
     ctr_log "already running name=$name"
+    mark_state "$name" running
     return 0
   fi
   "$eng" start "$name" >"$errfile" 2>&1
@@ -589,19 +1061,105 @@ start_container() {
     return 1
   fi
   rm -f "$errfile"
-  # Wait briefly until the runtime reports running (exec needs a live PID 1).
-  tries=0
-  while [ "$tries" -lt 20 ]; do
-    if is_running "$eng" "$name"; then
-      ctr_log "start ok name=$name"
-      return 0
-    fi
-    sleep 0.25
-    tries=$((tries + 1))
-  done
+  if wait_running "$eng" "$name"; then
+    ctr_log "start ok name=$name"
+    return 0
+  fi
   start_err="started but not running yet"
   ctr_log "start timeout name=$name"
   return 1
+}
+
+# Restart a running container (docker/podman restart). Used on Enter when already up.
+restart_container() {
+  local eng=$1
+  local name=$2
+  local errfile rc
+  errfile=$(mktemp)
+  ctr_log "restart begin eng=$eng name=$name"
+  "$eng" restart "$name" >"$errfile" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    start_err=$(tr '\n' ' ' <"$errfile" | sed 's/[[:space:]]*$//')
+    rm -f "$errfile"
+    [ -n "$start_err" ] || start_err="restart failed (exit $rc)"
+    ctr_log "restart fail name=$name err=$start_err"
+    return 1
+  fi
+  rm -f "$errfile"
+  if wait_running "$eng" "$name"; then
+    ctr_log "restart ok name=$name"
+    return 0
+  fi
+  start_err="restarted but not running yet"
+  ctr_log "restart timeout name=$name"
+  return 1
+}
+
+# Ensure $name is up: start if stopped, restart if already running.
+# Deps only start when down (never restart siblings).
+start_or_restart() {
+  local eng=$1
+  local name=$2
+  if is_running "$eng" "$name"; then
+    restart_container "$eng" "$name"
+  else
+    start_container "$eng" "$name"
+  fi
+}
+
+# Start compose depends_on chain (deps first), then start/restart $name.
+start_with_deps() {
+  local eng=$1
+  local name=$2
+  local order dep sn_dep dep_list=()
+  local count=0 total=0
+  start_err=""
+  order=$(resolve_start_order "$eng" "$name") || order=$name
+  while IFS= read -r dep || [ -n "$dep" ]; do
+    [ -z "$dep" ] && continue
+    dep_list+=("$dep")
+  done <<EOF
+$order
+EOF
+  total=${#dep_list[@]}
+  [ "$total" -gt 0 ] || dep_list=("$name")
+  total=${#dep_list[@]}
+  ctr_log "start order n=$total target=$name :: ${dep_list[*]}"
+  count=0
+  for dep in "${dep_list[@]}"; do
+    count=$((count + 1))
+    sn_dep=$(short_name "$dep")
+    if [ "$dep" = "$name" ]; then
+      if is_running "$eng" "$name"; then
+        status="restarting ${sn_dep}..."
+        detail="Enter on running · restart"
+      else
+        status="starting ${sn_dep}..."
+        if [ "$total" -gt 1 ]; then
+          detail="deps up · ${count}/${total}"
+        else
+          detail="start ${dep}"
+        fi
+      fi
+      status_err=0
+      draw
+      if ! start_or_restart "$eng" "$dep"; then
+        return 1
+      fi
+    else
+      status="starting dep ${sn_dep}..."
+      detail="${count}/${total} · need for $(short_name "$name")"
+      status_err=0
+      draw
+      if ! start_container "$eng" "$dep"; then
+        start_err="dep ${sn_dep}: ${start_err}"
+        ctr_log "dep fail name=$dep err=$start_err"
+        return 1
+      fi
+    fi
+  done
+  return 0
 }
 
 stop_container() {
@@ -660,11 +1218,11 @@ remove_container() {
   return 0
 }
 
-# Drop row $1 from parallel arrays (types/names/…/expanded).
+# Drop row $1 from parallel arrays (types/names/…/expanded/depths/deps).
 drop_row() {
   local idx=$1
   local x
-  local nt=() ne=() nn=() ns=() ni=() nv=() nd=() nx=()
+  local nt=() ne=() nn=() ns=() ni=() nv=() nd=() nx=() ndp=() nde=()
   x=0
   while [ "$x" -lt "$n" ]; do
     if [ "$x" -ne "$idx" ]; then
@@ -676,6 +1234,8 @@ drop_row() {
       nv+=("${volumes[$x]}")
       nd+=("${dirs[$x]}")
       nx+=("${expanded[$x]:-0}")
+      ndp+=("${depths[$x]:-0}")
+      nde+=("${deps[$x]:-}")
     fi
     x=$((x + 1))
   done
@@ -687,6 +1247,8 @@ drop_row() {
   volumes=("${nv[@]}")
   dirs=("${nd[@]}")
   expanded=("${nx[@]}")
+  depths=("${ndp[@]}")
+  deps=("${nde[@]}")
   n=${#types[@]}
   if [ "$n" -le 0 ]; then
     i=0
@@ -698,6 +1260,8 @@ drop_row() {
     volumes=("")
     dirs=("")
     expanded=("0")
+    depths=("0")
+    deps=("")
     n=1
     i=0
     return
@@ -843,17 +1407,24 @@ do_enter() {
   esac
   sn=$(short_name "$name")
   ctr_log "enter eng=$eng name=$name state=$state"
-  status="starting ${sn}..."
-  detail="start ${name}"
+  if [ "$state" = running ] || is_running "$eng" "$name"; then
+    status="restarting ${sn}..."
+    detail="running → restart + deps"
+  else
+    status="resolving deps for ${sn}..."
+    detail="compose depends_on"
+  fi
   status_err=0
   draw
-  if ! start_container "$eng" "$name"; then
+  # Deps start if down; target starts if down, restarts if already running.
+  if ! start_with_deps "$eng" "$name"; then
     show_fail \
       "could not start ${sn}" \
       "${start_err}. Is the container runtime running?"
     return
   fi
   states[$i]=running
+  mark_state "$name" running
   status="opening shell in ${sn}..."
   detail="workspace + shell"
   status_err=0
@@ -879,6 +1450,7 @@ while true; do
     quit) exit 0 ;;
     expand) toggle_expand ;;
     stop) do_stop ;;
+    search) do_search ;;
     enter) do_enter ;;
   esac
 done
